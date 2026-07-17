@@ -142,9 +142,24 @@ canvas {
   100% { opacity: 1; transform: scale(1); }
 }
 
+.glass-panel {
+  background: #ffffff;
+  border: 5px solid #dfe6e9;
+  border-radius: 35px;
+  box-shadow: 0 10px 0 rgba(0,0,0,0.1);
+  width: 85%;
+  height: 85%;
+  max-width: 1020px;
+  max-height: 680px;
+  margin: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  padding: 40px;
+}
+
 /* Typography & Buttons */
 .title {
-  font-size: 5rem;
   font-weight: 900;
   color: #ff7675;
   text-shadow: 4px 4px 0px #ffeaa7, 8px 8px 0px rgba(0,0,0,0.1);
