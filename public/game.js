@@ -1,13 +1,18 @@
-const socket = io();
+// Connect explicitly to the Render backend
+const socket = io('https://magstrike-io.onrender.com');
 
 // ==========================================
 // 1. Data & State Management
 // ==========================================
-const STORAGE_KEY = 'magstrike_savedata_v2';
+const STORAGE_KEY = 'magstrike_savedata_v3';
 let saveData = {
   coins: 0,
   ownedItems: ['default'],
-  equippedTrail: 'default'
+  equippedTrail: 'default',
+  username: `Player_${Math.floor(Math.random() * 9000) + 1000}`,
+  totalWins: 0,
+  totalGoals: 0,
+  matchesPlayed: 0
 };
 
 const ITEMS = [
@@ -26,12 +31,13 @@ let myPlayerNum = 0; // 1 or 2
 const scenes = {
   'MAIN_MENU': document.getElementById('main-menu'),
   'SHOP': document.getElementById('shop'),
+  'PROFILE': document.getElementById('profile'),
   'GAMEPLAY': document.getElementById('gameplay-ui'),
   'GAME_OVER': document.getElementById('game-over')
 };
-const coinsDisplay = document.getElementById('coins-display');
-const coinCount = document.getElementById('coin-count');
+const coinsDisplay = document.getElementById('coin-count');
 const statusText = document.getElementById('matchmaking-status');
+const welcomeName = document.getElementById('welcome-name');
 
 function loadSave() {
   const data = localStorage.getItem(STORAGE_KEY);
@@ -40,37 +46,52 @@ function loadSave() {
       saveData = { ...saveData, ...JSON.parse(data) };
     } catch(e) { console.error('Corrupted save data'); }
   }
-  updateCoinsUI();
-  // Tell server what trail we have equipped
+  updateUI();
   socket.emit('equipTrail', saveData.equippedTrail);
+  socket.emit('setProfile', { username: saveData.username });
 }
 
 function saveGame() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
-  updateCoinsUI();
+  updateUI();
 }
 
-function updateCoinsUI() {
-  coinCount.innerText = saveData.coins.toLocaleString();
+function updateUI() {
+  coinsDisplay.innerText = saveData.coins.toLocaleString();
+  welcomeName.innerText = saveData.username;
+  
+  // Update Profile Scene
+  document.getElementById('username-input').value = saveData.username;
+  document.getElementById('stat-wins').innerText = saveData.totalWins;
+  document.getElementById('stat-matches').innerText = saveData.matchesPlayed;
+  document.getElementById('stat-goals').innerText = saveData.totalGoals;
+  
+  const winRate = saveData.matchesPlayed > 0 ? Math.round((saveData.totalWins / saveData.matchesPlayed) * 100) : 0;
+  document.getElementById('stat-winrate').innerText = `${winRate}%`;
 }
 
-function changeScene(newScene) {
+window.changeScene = function(newScene) {
   Object.values(scenes).forEach(s => s.classList.remove('active'));
   scenes[newScene].classList.add('active');
   gameState = newScene;
 
-  if (newScene === 'MAIN_MENU' || newScene === 'SHOP') {
-    coinsDisplay.style.display = 'block';
-  } else {
-    coinsDisplay.style.display = 'none';
-  }
-  
   if (newScene === 'MAIN_MENU') {
     statusText.style.display = 'none';
+  } else if (newScene === 'SHOP') {
+    renderShop();
   }
-  
-  if (newScene === 'SHOP') renderShop();
 }
+
+// Profile Save Event
+document.getElementById('save-profile-btn').addEventListener('click', () => {
+  const newName = document.getElementById('username-input').value.trim();
+  if (newName.length > 0) {
+    saveData.username = newName;
+    saveGame();
+    socket.emit('setProfile', { username: saveData.username });
+    alert("Profile saved successfully!");
+  }
+});
 
 // Shop Rendering
 function renderShop() {
@@ -111,6 +132,8 @@ window.buyItem = function(id, price) {
     saveData.ownedItems.push(id);
     saveGame();
     renderShop();
+  } else {
+    alert("Not enough Mag-Credits!");
   }
 }
 
@@ -164,6 +187,9 @@ socket.on('matchFound', (data) => {
     document.getElementById('room-code-display').innerText = `ROOM: ${data.roomId}`;
   }
   
+  saveData.matchesPlayed++;
+  saveGame();
+  
   changeScene('GAMEPLAY');
 });
 
@@ -181,15 +207,6 @@ socket.on('opponentDisconnected', () => {
 // ==========================================
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-let cw, ch;
-
-function resizeCanvas() {
-  cw = canvas.width = window.innerWidth;
-  ch = canvas.height = window.innerHeight;
-  // Standardize scaling if needed, but since CSS is 100%, we map server 1200x800 to canvas size
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
 
 const keys = {};
 window.addEventListener('keydown', e => keys[e.code] = true);
@@ -234,6 +251,7 @@ socket.on('goalScored', (data) => {
   
   if (data.scorer === myPlayerNum) {
     saveData.coins += 5;
+    saveData.totalGoals++;
     saveGame();
   }
   
@@ -256,6 +274,7 @@ socket.on('gameOver', (data) => {
   if (winner === myPlayerNum) {
     text = "You Win!";
     saveData.coins += 50;
+    saveData.totalWins++;
     saveGame();
     document.getElementById('reward-text').innerText = "+50 Ȼ";
   } else {
@@ -271,7 +290,7 @@ socket.on('gameOver', (data) => {
 });
 
 function spawnTrails(state) {
-  [state.p1, state.p2].forEach((p, idx) => {
+  [state.p1, state.p2].forEach((p) => {
     const speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
     if (speed > 2) {
       const trailInfo = ITEMS.find(i => i.id === p.trail) || ITEMS[0];
@@ -286,7 +305,7 @@ function spawnTrails(state) {
   });
 }
 
-function drawEntity(x, y, radius, color) {
+function drawEntity(x, y, radius, color, username) {
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI*2);
   ctx.fillStyle = color;
@@ -299,6 +318,16 @@ function drawEntity(x, y, radius, color) {
   ctx.arc(x - radius*0.2, y - radius*0.2, radius*0.4, 0, Math.PI*2);
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.fill();
+  
+  if (username) {
+    ctx.font = 'bold 18px Outfit, sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#000';
+    ctx.shadowBlur = 5;
+    ctx.fillText(username, x, y - radius - 15);
+    ctx.shadowBlur = 0; // reset
+  }
 }
 
 function drawArena() {
@@ -337,18 +366,7 @@ function drawArena() {
 function drawGame() {
   // Clear
   ctx.fillStyle = gameState === 'GAMEPLAY' ? 'rgba(11, 12, 16, 0.3)' : '#0b0c10';
-  ctx.fillRect(0, 0, cw, ch);
-  
-  // Save context and scale for server coordinates (1200x800)
-  ctx.save();
-  const scaleX = cw / 1200;
-  const scaleY = ch / 800;
-  const scale = Math.min(scaleX, scaleY);
-  const offsetX = (cw - 1200 * scale) / 2;
-  const offsetY = (ch - 800 * scale) / 2;
-  
-  ctx.translate(offsetX, offsetY);
-  ctx.scale(scale, scale);
+  ctx.fillRect(0, 0, 1200, 800);
 
   if (gameState === 'GAMEPLAY' || gameState === 'GAME_OVER') {
     drawArena();
@@ -376,8 +394,8 @@ function drawGame() {
       
       particles.forEach(p => p.draw(ctx));
       
-      drawEntity(serverState.p1.x, serverState.p1.y, 30, '#45f3ff');
-      drawEntity(serverState.p2.x, serverState.p2.y, 30, '#ff45a1');
+      drawEntity(serverState.p1.x, serverState.p1.y, 30, '#45f3ff', serverState.p1.username);
+      drawEntity(serverState.p2.x, serverState.p2.y, 30, '#ff45a1', serverState.p2.username);
       
       if (serverState.ball.x > 0) {
         ctx.beginPath();
@@ -401,8 +419,6 @@ function drawGame() {
     particles.forEach(p => p.draw(ctx));
   }
   
-  ctx.restore();
-  
   for (let i = particles.length - 1; i >= 0; i--) {
     particles[i].update();
     if (particles[i].life <= 0) particles.splice(i, 1);
@@ -414,9 +430,6 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-// Event Listeners
-document.getElementById('shop-btn').addEventListener('click', () => changeScene('SHOP'));
-document.getElementById('back-to-menu-btn').addEventListener('click', () => changeScene('MAIN_MENU'));
 document.getElementById('return-menu-btn').addEventListener('click', () => {
   serverState = null;
   changeScene('MAIN_MENU');

@@ -4,32 +4,44 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MagStrike.io Multiplayer</title>
-  <link rel="icon" href="data:,"> <!-- Fix for favicon 404 -->
+  <link rel="icon" href="data:,"> 
   <link rel="stylesheet" href="style.css">
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
-<body style="margin: 0; padding: 0; background: #05050a; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden;">
+<body>
   
-  <div id="game-container" style="position: relative; width: 100%; height: 100%; max-width: 1200px; max-height: 800px; aspect-ratio: 1200/800; box-shadow: 0 0 50px rgba(69, 243, 255, 0.2); background: #0b0c10;">
-    <canvas id="gameCanvas" width="1200" height="800" style="width: 100%; height: 100%; display: block;"></canvas>
+  <!-- Global Navbar -->
+  <nav id="navbar">
+    <div class="nav-brand">MagStrike.io</div>
+    <div class="nav-links">
+      <button class="nav-btn" onclick="changeScene('MAIN_MENU')">Play</button>
+      <button class="nav-btn" onclick="changeScene('SHOP')">Shop</button>
+      <button class="nav-btn" onclick="changeScene('PROFILE')">Profile</button>
+    </div>
+    <div class="nav-coins">Ȼ <span id="coin-count">0</span></div>
+  </nav>
+
+  <div id="game-container">
+    <canvas id="gameCanvas" width="1200" height="800"></canvas>
     
     <div id="ui-layer">
-      <div class="coins-display" id="coins-display" style="display: none;">Ȼ <span id="coin-count">0</span></div>
       
-      <div id="main-menu" class="scene active">
+      <!-- Main Menu Scene -->
+      <div id="main-menu" class="scene active glass-panel">
         <h1 class="title">MagStrike.io</h1>
+        <p class="subtitle">Welcome, <span id="welcome-name">Player</span>!</p>
         
-        <button class="btn primary-btn" id="play-random-btn">Find Random Match</button>
-        <button class="btn primary-btn" id="create-room-btn">Create Private Room</button>
-        
-        <div style="margin: 15px; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px; border: 1px solid #333; display: flex; align-items: center; gap: 10px;">
-          <input type="text" id="room-code-input" placeholder="ENTER CODE" style="padding: 10px; font-size: 1.2rem; border-radius: 5px; text-transform: uppercase; width: 150px; text-align: center; border: 2px solid #45f3ff; background: transparent; color: #fff; outline: none;" maxlength="4">
-          <button class="btn primary-btn" id="join-room-btn" style="padding: 10px 20px; font-size: 1.2rem; margin: 0;">Join</button>
+        <div class="action-buttons">
+          <button class="btn primary-btn" id="play-random-btn">Find Random Match</button>
+          <button class="btn primary-btn" id="create-room-btn">Create Private Room</button>
         </div>
         
-        <button class="btn secondary-btn" id="shop-btn">Shop</button>
+        <div class="room-joiner">
+          <input type="text" id="room-code-input" placeholder="ENTER CODE" maxlength="4">
+          <button class="btn primary-btn" id="join-room-btn">Join</button>
+        </div>
         
-        <div id="matchmaking-status" style="margin-top: 15px; color: #ffca28; font-size: 1.5rem; font-weight: bold; display: none;"></div>
+        <div id="matchmaking-status" class="status-text"></div>
         
         <div class="controls-panel">
           <div class="control-col p1-controls">
@@ -41,27 +53,60 @@
         </div>
       </div>
       
-      <div id="shop" class="scene">
+      <!-- Shop Scene -->
+      <div id="shop" class="scene glass-panel">
         <h2 class="scene-title">Cosmetics Shop</h2>
         <div class="shop-grid" id="shop-grid">
           <!-- JS injects items here -->
         </div>
-        <button class="btn secondary-btn" id="back-to-menu-btn">Back to Menu</button>
+      </div>
+
+      <!-- Profile Scene -->
+      <div id="profile" class="scene glass-panel">
+        <h2 class="scene-title">Player Profile</h2>
+        
+        <div class="profile-editor">
+          <label for="username-input">Username:</label>
+          <input type="text" id="username-input" maxlength="12" placeholder="Enter username...">
+          <button class="btn primary-btn" id="save-profile-btn" style="padding: 10px 20px; font-size: 1rem;">Save</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-value" id="stat-wins">0</div>
+            <div class="stat-label">Total Wins</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="stat-matches">0</div>
+            <div class="stat-label">Matches Played</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="stat-goals">0</div>
+            <div class="stat-label">Goals Scored</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="stat-winrate">0%</div>
+            <div class="stat-label">Win Rate</div>
+          </div>
+        </div>
       </div>
       
-      <div id="gameplay-ui" class="scene" style="pointer-events: none;">
-        <div id="room-code-display" style="position: absolute; top: 20px; left: 20px; font-size: 2rem; color: #fff; font-weight: bold; text-shadow: 0 0 10px #000;"></div>
+      <!-- Gameplay UI -->
+      <div id="gameplay-ui" class="scene" style="pointer-events: none; background: transparent; backdrop-filter: none;">
+        <div id="room-code-display" class="room-code"></div>
         <div class="scoreboard">
           <div class="score p1-score" id="p1-score">0</div>
           <div class="score p2-score" id="p2-score">0</div>
         </div>
       </div>
       
-      <div id="game-over" class="scene">
+      <!-- Game Over Scene -->
+      <div id="game-over" class="scene glass-panel" style="width: auto; height: auto; padding: 50px; border-radius: 20px;">
         <h2 class="winner-text" id="winner-text">Game Over!</h2>
         <p class="reward-text" id="reward-text"></p>
         <button class="btn primary-btn" id="return-menu-btn">Return to Menu</button>
       </div>
+      
     </div>
   </div>
 

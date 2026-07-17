@@ -41,6 +41,11 @@ class GameRoom {
       [this.p2Id]: 'default'
     };
     
+    this.usernames = {
+      [this.p1Id]: 'Player 1',
+      [this.p2Id]: 'Player 2'
+    };
+    
     this.visualEffects = [];
     this.loopInterval = null;
   }
@@ -54,6 +59,12 @@ class GameRoom {
   setPlayerTrail(playerId, trailId) {
     if (this.trails[playerId] !== undefined) {
       this.trails[playerId] = trailId;
+    }
+  }
+
+  setPlayerUsername(playerId, username) {
+    if (this.usernames[playerId] !== undefined) {
+      this.usernames[playerId] = username;
     }
   }
 
@@ -224,8 +235,8 @@ class GameRoom {
   
   broadcastState() {
     const state = {
-      p1: { x: this.p1.x, y: this.p1.y, vx: this.p1.vx, vy: this.p1.vy, trail: this.trails[this.p1Id] },
-      p2: { x: this.p2.x, y: this.p2.y, vx: this.p2.vx, vy: this.p2.vy, trail: this.trails[this.p2Id] },
+      p1: { x: this.p1.x, y: this.p1.y, vx: this.p1.vx, vy: this.p1.vy, trail: this.trails[this.p1Id], username: this.usernames[this.p1Id] },
+      p2: { x: this.p2.x, y: this.p2.y, vx: this.p2.vx, vy: this.p2.vy, trail: this.trails[this.p2Id], username: this.usernames[this.p2Id] },
       ball: { x: this.ball.x, y: this.ball.y, radius: this.ball.radius },
       fx: this.visualEffects
     };

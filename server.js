@@ -6,7 +6,12 @@ const GameRoom = require('./gameRoom');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -90,6 +95,12 @@ io.on('connection', (socket) => {
   socket.on('equipTrail', (trailId) => {
     if (socket.roomId && rooms.has(socket.roomId)) {
       rooms.get(socket.roomId).setPlayerTrail(socket.id, trailId);
+    }
+  });
+
+  socket.on('setProfile', (data) => {
+    if (socket.roomId && rooms.has(socket.roomId)) {
+      rooms.get(socket.roomId).setPlayerUsername(socket.id, data.username);
     }
   });
 
