@@ -66,6 +66,7 @@ const scenes = {
   'GAMEPLAY': document.getElementById('gameplay-ui'),
   'GAME_OVER': document.getElementById('game-over'),
   'VERSUS_SCREEN': document.getElementById('versus-screen'),
+  'WAITING_LOBBY': document.getElementById('waiting-lobby'),
   'GLOBAL_LOADER': document.getElementById('global-loader')
 };
 const coinsDisplay = document.getElementById('coin-count');
@@ -188,36 +189,58 @@ window.equipItem = function(id) {
 }
 
 // ==========================================
-// 3. Socket.io Matchmaking
+// 3. Socket.io Matchmaking & Fullscreen
 // ==========================================
+function attemptFullscreen() {
+  if (document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().catch(err => console.log("Fullscreen blocked"));
+  }
+}
+
 document.getElementById('play-random-btn').addEventListener('click', () => {
+  attemptFullscreen();
   socket.emit('joinRandom');
+  changeScene('WAITING_LOBBY');
+  document.getElementById('waiting-text').innerText = "SEARCHING FOR OPPONENT...";
 });
 
 document.getElementById('create-room-btn').addEventListener('click', () => {
+  attemptFullscreen();
   socket.emit('createRoom');
+  changeScene('WAITING_LOBBY');
+  document.getElementById('waiting-text').innerText = "CREATING ROOM...";
 });
 
 document.getElementById('join-room-btn').addEventListener('click', () => {
+  attemptFullscreen();
   const code = document.getElementById('room-code-input').value.trim();
-  if (code) socket.emit('joinRoom', code);
+  if (code) {
+    socket.emit('joinRoom', code);
+    changeScene('WAITING_LOBBY');
+    document.getElementById('waiting-text').innerText = "JOINING ROOM...";
+  }
+});
+
+document.getElementById('cancel-matchmaking-btn').addEventListener('click', () => {
+  // If we had a leave logic in socket we'd emit it here
+  socket.disconnect(); // brute force cancel
+  socket = io(LOCAL_URL); // Reconnect
+  initSocketFallback(); // rebind
+  changeScene('MAIN_MENU');
 });
 
 function bindSocketEvents() {
   socket.on('waitingForMatch', () => {
-    statusText.innerText = "Searching for opponent...";
-    statusText.style.display = 'block';
+    document.getElementById('waiting-text').innerText = "SEARCHING FOR OPPONENT...";
   });
 
   socket.on('roomCreated', (roomId) => {
-    statusText.innerText = `Room Created! Code: ${roomId}`;
-    statusText.style.display = 'block';
+    document.getElementById('waiting-text').innerText = `ROOM CREATED!\nCODE: ${roomId}\nWAITING FOR PLAYER...`;
   });
 
   socket.on('roomError', (msg) => {
-    statusText.innerText = msg;
-    statusText.style.display = 'block';
-    setTimeout(() => statusText.style.display = 'none', 3000);
+    document.getElementById('waiting-text').innerText = msg;
+    setTimeout(() => { if(gameState === 'WAITING_LOBBY') changeScene('MAIN_MENU'); }, 2000);
   });
 
   socket.on('matchFound', (data) => {
@@ -406,23 +429,42 @@ function drawEntity(x, y, radius, img, username) {
 }
 
 function drawArena() {
-  ctx.drawImage(assets.game_bg, 0, 0, 1200, 800);
+  // Draw Grass Field instead of image to fit theme perfectly
+  ctx.fillStyle = '#55efc4'; // Bright green grass
+  ctx.fillRect(0, 0, 1200, 800);
+  
+  // Field stripes
+  ctx.fillStyle = '#00b894'; // Darker grass stripe
+  for(let i=0; i<1200; i+=100) {
+    if ((i/100)%2 === 0) ctx.fillRect(i, 0, 100, 800);
+  }
+  
+  // Outer bounds and center line
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(20, 20, 1160, 760);
+  
+  ctx.beginPath();
+  ctx.moveTo(600, 20);
+  ctx.lineTo(600, 780);
+  ctx.stroke();
+  
+  // Center circle
+  ctx.beginPath();
+  ctx.arc(600, 400, 120, 0, Math.PI*2);
+  ctx.stroke();
   
   // Goal Zones highlight
   const goalH = 400;
   const goalY = (800 - goalH)/2;
   
-  ctx.fillStyle = 'rgba(84, 160, 255, 0.2)';
-  ctx.fillRect(0, goalY, 30, goalH);
-  ctx.shadowColor = '#54a0ff'; ctx.shadowBlur = 10;
-  ctx.fillStyle = '#54a0ff'; ctx.fillRect(0, goalY, 8, goalH);
-  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(116, 185, 255, 0.4)';
+  ctx.fillRect(20, goalY, 40, goalH);
+  ctx.strokeRect(20, goalY, 40, goalH);
   
-  ctx.fillStyle = 'rgba(255, 107, 107, 0.2)';
-  ctx.fillRect(1200-30, goalY, 30, goalH);
-  ctx.shadowColor = '#ff6b6b'; ctx.shadowBlur = 10;
-  ctx.fillStyle = '#ff6b6b'; ctx.fillRect(1200-8, goalY, 8, goalH);
-  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255, 118, 117, 0.4)';
+  ctx.fillRect(1140, goalY, 40, goalH);
+  ctx.strokeRect(1140, goalY, 40, goalH);
 }
 
 function drawGame() {
