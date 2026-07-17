@@ -125,6 +125,10 @@ canvas {
   top: 0;
   left: 0;
   pointer-events: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  padding: 20px 0; /* Add padding so top isn't cut off if scrolling happens */
 }
 
 .scene.active {
@@ -135,17 +139,6 @@ canvas {
 @keyframes bounceIn {
   0% { opacity: 0; transform: scale(0.8); }
   100% { opacity: 1; transform: scale(1); }
-}
-
-.glass-panel {
-  background: #ffffff;
-  border: 5px solid #dfe6e9;
-  border-radius: 35px;
-  box-shadow: 0 10px 0 rgba(0,0,0,0.1);
-  max-height: 95%;
-  max-width: 95%;
-  overflow-y: auto;
-  overflow-x: hidden;
 }
 
 /* Typography & Buttons */
