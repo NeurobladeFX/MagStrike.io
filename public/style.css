@@ -142,6 +142,10 @@ canvas {
   border: 5px solid #dfe6e9;
   border-radius: 35px;
   box-shadow: 0 10px 0 rgba(0,0,0,0.1);
+  max-height: 95%;
+  max-width: 95%;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Typography & Buttons */
@@ -167,7 +171,7 @@ canvas {
   font-size: 3.5rem;
   font-weight: 900;
   color: #00cec9;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   text-transform: uppercase;
   text-shadow: 3px 3px 0px #fff;
 }
@@ -294,9 +298,9 @@ canvas {
   display: flex;
   align-items: center;
   gap: 15px;
-  margin-bottom: 40px;
+  margin-bottom: 20px;
   background: #ffffff;
-  padding: 20px 30px;
+  padding: 15px 25px;
   border-radius: 25px;
   border: 4px solid #dfe6e9;
   box-shadow: 0 8px 0 rgba(0,0,0,0.05);
@@ -328,7 +332,7 @@ canvas {
   background: #ffffff;
   border: 4px solid #dfe6e9;
   border-radius: 25px;
-  padding: 25px;
+  padding: 15px;
   text-align: center;
   box-shadow: 0 8px 0 rgba(0,0,0,0.05);
 }
