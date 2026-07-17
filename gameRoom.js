@@ -169,8 +169,8 @@ class GameRoom {
     
     this.visualEffects = [];
     
-    const accel = 1.2;
-    const maxSpeed = 14;
+    const accel = 0.65;
+    const maxSpeed = 10;
     const p1Keys = this.inputs[this.p1Id] || {};
     const p2Keys = this.inputs[this.p2Id] || {};
     
