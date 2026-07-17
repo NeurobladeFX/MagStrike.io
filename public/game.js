@@ -83,7 +83,44 @@ function loadSave() {
   updateUI();
   socket.emit('equipTrail', saveData.equippedTrail);
   socket.emit('setProfile', { username: saveData.username });
+  
+  if (saveData.customAvatar) {
+    document.getElementById('profile-avatar-preview').src = saveData.customAvatar;
+    if (assets.striker_blue) assets.striker_blue.src = saveData.customAvatar;
+    if (assets.striker_red) assets.striker_red.src = saveData.customAvatar;
+  }
 }
+
+// Custom Avatar Upload Logic
+document.getElementById('avatar-upload').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 128, 128);
+        const dataUrl = canvas.toDataURL('image/png');
+        
+        saveData.customAvatar = dataUrl;
+        saveGame();
+        
+        document.getElementById('profile-avatar-preview').src = dataUrl;
+        // assets.avatar_1.src = dataUrl;
+        
+        if (socket && socket.connected) {
+          socket.emit('updateAvatar', dataUrl);
+        }
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+});
 
 function saveGame() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
@@ -144,18 +181,21 @@ function renderShop() {
   
   ITEMS.forEach(item => {
     const isOwned = saveData.ownedItems.includes(item.id);
-    const isEquipped = saveData.equippedTrail === item.id;
+    const isEquipped = saveData.equippedTrail === item.id || saveData.equippedAvatar === item.id;
     
     const div = document.createElement('div');
     div.className = `shop-item ${isEquipped ? 'equipped' : ''}`;
     
-    const iconStr = `<div class="item-icon" style="background: radial-gradient(circle, ${item.color} 20%, transparent 80%); border: 2px solid #555;"></div>`;
-    
+    // Different icon style for avatars
+    const iconStr = item.type === 'avatar' 
+      ? `<div class="item-icon" style="background: radial-gradient(circle, ${item.color} 50%, #fff 50%); border: 2px solid #555;"></div>`
+      : `<div class="item-icon" style="background: radial-gradient(circle, ${item.color} 20%, transparent 80%); border: 2px solid #555;"></div>`;
+      
     let btnHtml = '';
     if (isEquipped) {
       btnHtml = `<button class="item-btn btn-equipped" disabled>Equipped</button>`;
     } else if (isOwned) {
-      btnHtml = `<button class="item-btn btn-equip" onclick="equipItem('${item.id}')">Equip</button>`;
+      btnHtml = `<button class="item-btn btn-equip" onclick="equipItem('${item.id}', '${item.type}')">Equip</button>`;
     } else {
       btnHtml = `<button class="item-btn btn-buy" onclick="buyItem('${item.id}', ${item.price})">Buy Ȼ ${item.price}</button>`;
     }
@@ -181,11 +221,27 @@ window.buyItem = function(id, price) {
   }
 }
 
-window.equipItem = function(id) {
-  saveData.equippedTrail = id;
+window.equipItem = function(id, type) {
+  if (type === 'avatar') {
+    saveData.equippedAvatar = id;
+    if (id === 'avatar_dog') saveData.customAvatar = 'assets/avatar_1.png';
+    else if (id === 'avatar_alien') saveData.customAvatar = 'assets/avatar_2.png';
+    
+    // Update local preview and game assets instantly
+    document.getElementById('profile-avatar-preview').src = saveData.customAvatar;
+    if (assets.striker_blue) assets.striker_blue.src = saveData.customAvatar;
+    if (assets.striker_red) assets.striker_red.src = saveData.customAvatar;
+    
+    if (socket && socket.connected) {
+      // Need to convert to base64 if we want to send to server, or server handles IDs.
+      // For now, this changes local visually.
+    }
+  } else {
+    saveData.equippedTrail = id;
+    socket.emit('equipTrail', id);
+  }
   saveGame();
   renderShop();
-  socket.emit('equipTrail', id);
 }
 
 // ==========================================
