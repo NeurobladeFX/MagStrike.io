@@ -22,9 +22,11 @@
   </nav>
 
   <div id="game-container">
-    <canvas id="gameCanvas" width="1200" height="800"></canvas>
-    
-    <div id="ui-layer">
+    <div class="game-wrapper">
+      <canvas id="gameCanvas" width="1200" height="800"></canvas>
+      
+      <!-- UI Layer for Overlays -->
+      <div id="ui-layer">
       
       <!-- Main Menu Scene -->
       <div id="main-menu" class="scene active glass-panel">
@@ -124,11 +126,12 @@
       </div>
 
       <!-- Global Loader -->
-      <div id="global-loader" class="scene" style="background: #000; z-index: 999; display: flex;">
+      <div id="global-loader" class="scene" style="background: rgba(255,255,255,0.9); z-index: 999; display: flex;">
         <div class="loader-ring"></div>
-        <div style="margin-top: 20px; font-weight: bold; color: #45f3ff;">LOADING ASSETS...</div>
+        <div style="margin-top: 20px; font-weight: bold; color: #ff7675; font-size: 2rem;">LOADING ASSETS...</div>
       </div>
       
+    </div>
     </div>
   </div>
 
