@@ -504,8 +504,12 @@ function drawGame() {
       }
     }
   } else {
-    // Menu background (use the hand-painted grassy arena instead of the AI image)
-    drawArena();
+    // Menu background: beautiful sunny sky gradient instead of the arena field
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, 800);
+    bgGradient.addColorStop(0, '#74b9ff');
+    bgGradient.addColorStop(1, '#81ecec');
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, 1200, 800);
     
     if (Math.random() < 0.1) {
       particles.push(new Particle(Math.random()*1200, Math.random()*800, 'rgba(255,255,255,0.4)', 100, Math.random()*3+1));
