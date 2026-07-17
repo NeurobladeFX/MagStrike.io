@@ -396,10 +396,10 @@ function drawEntity(x, y, radius, img, username) {
   
   if (username) {
     ctx.font = '900 18px Nunito, sans-serif';
-    ctx.fillStyle = '#1a2a3a';
+    ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
-    ctx.shadowColor = '#fff';
-    ctx.shadowBlur = 3;
+    ctx.shadowColor = '#000';
+    ctx.shadowBlur = 4;
     ctx.fillText(username, x, y - radius - 15);
     ctx.shadowBlur = 0; // reset
   }
