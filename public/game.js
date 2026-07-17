@@ -1,5 +1,24 @@
-// Connect explicitly to the Render backend
-const socket = io('https://magstrike-io.onrender.com');
+// Connect explicitly to the Render backend with a fallback
+const RENDER_URL = 'https://magstrike-io.onrender.com';
+const LOCAL_URL = 'http://localhost:3000';
+
+let socket = io(RENDER_URL, { timeout: 4000 }); // 4 second timeout
+
+function initSocketFallback() {
+  socket.on('connect_error', () => {
+    console.warn("Render server timed out. Falling back to localhost...");
+    document.getElementById('matchmaking-status').innerText = "Render sleeping... connecting local.";
+    document.getElementById('matchmaking-status').style.display = 'block';
+    socket.disconnect();
+    socket = io(LOCAL_URL);
+    
+    socket.on('connect', () => {
+      document.getElementById('matchmaking-status').style.display = 'none';
+      bindSocketEvents();
+    });
+  });
+  bindSocketEvents();
+}
 
 // ==========================================
 // 1. Data & State Management
@@ -172,47 +191,115 @@ document.getElementById('join-room-btn').addEventListener('click', () => {
   if (code) socket.emit('joinRoom', code);
 });
 
-socket.on('waitingForMatch', () => {
-  statusText.innerText = "Searching for opponent...";
-  statusText.style.display = 'block';
-});
+function bindSocketEvents() {
+  socket.on('waitingForMatch', () => {
+    statusText.innerText = "Searching for opponent...";
+    statusText.style.display = 'block';
+  });
 
-socket.on('roomCreated', (roomId) => {
-  statusText.innerText = `Room Created! Code: ${roomId}`;
-  statusText.style.display = 'block';
-});
+  socket.on('roomCreated', (roomId) => {
+    statusText.innerText = `Room Created! Code: ${roomId}`;
+    statusText.style.display = 'block';
+  });
 
-socket.on('roomError', (msg) => {
-  statusText.innerText = msg;
-  statusText.style.display = 'block';
-  setTimeout(() => statusText.style.display = 'none', 3000);
-});
+  socket.on('roomError', (msg) => {
+    statusText.innerText = msg;
+    statusText.style.display = 'block';
+    setTimeout(() => statusText.style.display = 'none', 3000);
+  });
 
-socket.on('matchFound', (data) => {
-  myPlayerNum = data.playerNum;
-  document.getElementById('p1-score').innerText = '0';
-  document.getElementById('p2-score').innerText = '0';
-  
-  if (data.roomId.startsWith('room_')) {
-    document.getElementById('room-code-display').innerText = '';
-  } else {
-    document.getElementById('room-code-display').innerText = `ROOM: ${data.roomId}`;
-  }
-  
-  saveData.matchesPlayed++;
-  saveGame();
-  
-  changeScene('VERSUS_SCREEN');
-});
+  socket.on('matchFound', (data) => {
+    myPlayerNum = data.playerNum;
+    document.getElementById('p1-score').innerText = '0';
+    document.getElementById('p2-score').innerText = '0';
+    
+    if (data.roomId.startsWith('room_')) {
+      document.getElementById('room-code-display').innerText = '';
+    } else {
+      document.getElementById('room-code-display').innerText = `ROOM: ${data.roomId}`;
+    }
+    
+    saveData.matchesPlayed++;
+    saveGame();
+    
+    changeScene('VERSUS_SCREEN');
+  });
 
-socket.on('opponentDisconnected', () => {
-  if (gameState === 'GAMEPLAY') {
-    document.getElementById('winner-text').innerText = "Opponent Disconnected";
-    document.getElementById('winner-text').style.color = "#fff";
-    document.getElementById('reward-text').innerText = "";
+  socket.on('opponentDisconnected', () => {
+    if (gameState === 'GAMEPLAY') {
+      document.getElementById('winner-text').innerText = "Opponent Disconnected";
+      document.getElementById('winner-text').style.color = "#fff";
+      document.getElementById('reward-text').innerText = "";
+      changeScene('GAME_OVER');
+    }
+  });
+
+  socket.on('state', (state) => {
+    serverState = state;
+    spawnTrails(state);
+    
+    if (gameState === 'VERSUS_SCREEN') {
+      document.getElementById('vs-p1-name').innerText = state.p1.username || 'Player 1';
+      document.getElementById('vs-p2-name').innerText = state.p2.username || 'Player 2';
+      
+      if (state.status === 'COUNTDOWN') {
+        document.getElementById('vs-countdown').innerText = state.countdown;
+      } else if (state.status === 'PLAYING') {
+        // Direct DOM swap to avoid loading delay
+        scenes['VERSUS_SCREEN'].classList.remove('active');
+        scenes['GAMEPLAY'].classList.add('active');
+        gameState = 'GAMEPLAY';
+      }
+    }
+  });
+
+  socket.on('goalScored', (data) => {
+    document.getElementById('p1-score').innerText = data.scores.p1;
+    document.getElementById('p2-score').innerText = data.scores.p2;
+    
+    if (data.scorer === myPlayerNum) {
+      saveData.coins += 5;
+      saveData.totalGoals++;
+      saveGame();
+    }
+    
+    // Explosion
+    for(let i=0; i<40; i++) {
+      const c = data.scorer === 1 ? '#45f3ff' : '#ff45a1';
+      particles.push(new Particle(
+        data.ball.x, data.ball.y, c, 
+        30 + Math.random()*20, 
+        Math.random()*6 + 2, 
+        (Math.random()-0.5)*20, 
+        (Math.random()-0.5)*20
+      ));
+    }
+  });
+
+  socket.on('gameOver', (data) => {
+    const winner = data.winner;
+    let text = "";
+    if (winner === myPlayerNum) {
+      text = "You Win!";
+      saveData.coins += 50;
+      saveData.totalWins++;
+      saveGame();
+      document.getElementById('reward-text').innerText = "+50 Ȼ";
+    } else {
+      text = "You Lose";
+      document.getElementById('reward-text').innerText = "";
+    }
+    
+    document.getElementById('winner-text').innerText = text;
+    document.getElementById('winner-text').style.color = winner === 1 ? '#54a0ff' : '#ff6b6b';
+    document.getElementById('winner-text').style.textShadow = `2px 2px 0px #fff`;
+    
     changeScene('GAME_OVER');
-  }
-});
+  });
+}
+
+// Initialize socket handling
+initSocketFallback();
 
 // ==========================================
 // 4. Game Engine & Rendering
@@ -272,69 +359,6 @@ class Particle {
 let serverState = null;
 let particles = [];
 
-socket.on('state', (state) => {
-  serverState = state;
-  spawnTrails(state);
-  
-  if (gameState === 'VERSUS_SCREEN') {
-    document.getElementById('vs-p1-name').innerText = state.p1.username || 'Player 1';
-    document.getElementById('vs-p2-name').innerText = state.p2.username || 'Player 2';
-    
-    if (state.status === 'COUNTDOWN') {
-      document.getElementById('vs-countdown').innerText = state.countdown;
-    } else if (state.status === 'PLAYING') {
-      // Direct DOM swap to avoid loading delay
-      scenes['VERSUS_SCREEN'].classList.remove('active');
-      scenes['GAMEPLAY'].classList.add('active');
-      gameState = 'GAMEPLAY';
-    }
-  }
-});
-
-socket.on('goalScored', (data) => {
-  document.getElementById('p1-score').innerText = data.scores.p1;
-  document.getElementById('p2-score').innerText = data.scores.p2;
-  
-  if (data.scorer === myPlayerNum) {
-    saveData.coins += 5;
-    saveData.totalGoals++;
-    saveGame();
-  }
-  
-  // Explosion
-  for(let i=0; i<40; i++) {
-    const c = data.scorer === 1 ? '#45f3ff' : '#ff45a1';
-    particles.push(new Particle(
-      data.ball.x, data.ball.y, c, 
-      30 + Math.random()*20, 
-      Math.random()*6 + 2, 
-      (Math.random()-0.5)*20, 
-      (Math.random()-0.5)*20
-    ));
-  }
-});
-
-socket.on('gameOver', (data) => {
-  const winner = data.winner;
-  let text = "";
-  if (winner === myPlayerNum) {
-    text = "You Win!";
-    saveData.coins += 50;
-    saveData.totalWins++;
-    saveGame();
-    document.getElementById('reward-text').innerText = "+50 Ȼ";
-  } else {
-    text = "You Lose";
-    document.getElementById('reward-text').innerText = "";
-  }
-  
-  document.getElementById('winner-text').innerText = text;
-  document.getElementById('winner-text').style.color = winner === 1 ? '#45f3ff' : '#ff45a1';
-  document.getElementById('winner-text').style.textShadow = `0 0 20px ${winner===1?'#45f3ff':'#ff45a1'}`;
-  
-  changeScene('GAME_OVER');
-});
-
 function spawnTrails(state) {
   [state.p1, state.p2].forEach((p) => {
     const speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
@@ -355,16 +379,15 @@ function drawEntity(x, y, radius, img, username) {
   // Draw Asset
   ctx.save();
   ctx.translate(x, y);
-  // Optional: rotate by velocity if ball, but for top-down, just draw
   ctx.drawImage(img, -radius, -radius, radius * 2, radius * 2);
   ctx.restore();
   
   if (username) {
-    ctx.font = 'bold 18px Outfit, sans-serif';
-    ctx.fillStyle = '#fff';
+    ctx.font = '900 18px Nunito, sans-serif';
+    ctx.fillStyle = '#1a2a3a';
     ctx.textAlign = 'center';
-    ctx.shadowColor = '#000';
-    ctx.shadowBlur = 5;
+    ctx.shadowColor = '#fff';
+    ctx.shadowBlur = 3;
     ctx.fillText(username, x, y - radius - 15);
     ctx.shadowBlur = 0; // reset
   }
@@ -377,16 +400,16 @@ function drawArena() {
   const goalH = 400;
   const goalY = (800 - goalH)/2;
   
-  ctx.fillStyle = 'rgba(69, 243, 255, 0.05)';
+  ctx.fillStyle = 'rgba(84, 160, 255, 0.2)';
   ctx.fillRect(0, goalY, 30, goalH);
-  ctx.shadowColor = '#45f3ff'; ctx.shadowBlur = 20;
-  ctx.fillStyle = '#45f3ff'; ctx.fillRect(0, goalY, 8, goalH);
+  ctx.shadowColor = '#54a0ff'; ctx.shadowBlur = 10;
+  ctx.fillStyle = '#54a0ff'; ctx.fillRect(0, goalY, 8, goalH);
   ctx.shadowBlur = 0;
   
-  ctx.fillStyle = 'rgba(255, 69, 161, 0.05)';
+  ctx.fillStyle = 'rgba(255, 107, 107, 0.2)';
   ctx.fillRect(1200-30, goalY, 30, goalH);
-  ctx.shadowColor = '#ff45a1'; ctx.shadowBlur = 20;
-  ctx.fillStyle = '#ff45a1'; ctx.fillRect(1200-8, goalY, 8, goalH);
+  ctx.shadowColor = '#ff6b6b'; ctx.shadowBlur = 10;
+  ctx.fillStyle = '#ff6b6b'; ctx.fillRect(1200-8, goalY, 8, goalH);
   ctx.shadowBlur = 0;
 }
 
@@ -431,7 +454,7 @@ function drawGame() {
     ctx.drawImage(assets.home_bg, 0, 0, 1200, 800);
     
     if (Math.random() < 0.1) {
-      particles.push(new Particle(Math.random()*1200, Math.random()*800, 'rgba(69,243,255,0.2)', 100, Math.random()*3+1));
+      particles.push(new Particle(Math.random()*1200, Math.random()*800, 'rgba(255,255,255,0.4)', 100, Math.random()*3+1));
     }
     particles.forEach(p => p.draw(ctx));
   }
