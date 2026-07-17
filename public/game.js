@@ -539,4 +539,19 @@ window.onload = () => {
     loadSave();
     loop();
   });
+  
+  // Setup perfect UI scaling to match the canvas aspect ratio on any screen size
+  const uiLayer = document.getElementById('ui-layer');
+  const wrapper = document.querySelector('.game-wrapper');
+  if (uiLayer && wrapper) {
+    const resizeObserver = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        // The game has a fixed logical width of 1200px.
+        // We scale the UI layer down to exactly match the container's actual CSS rendered width.
+        const scale = entry.contentRect.width / 1200;
+        uiLayer.style.transform = `scale(${scale})`;
+      }
+    });
+    resizeObserver.observe(wrapper);
+  }
 };
