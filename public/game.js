@@ -33,7 +33,9 @@ const scenes = {
   'SHOP': document.getElementById('shop'),
   'PROFILE': document.getElementById('profile'),
   'GAMEPLAY': document.getElementById('gameplay-ui'),
-  'GAME_OVER': document.getElementById('game-over')
+  'GAME_OVER': document.getElementById('game-over'),
+  'VERSUS_SCREEN': document.getElementById('versus-screen'),
+  'GLOBAL_LOADER': document.getElementById('global-loader')
 };
 const coinsDisplay = document.getElementById('coin-count');
 const statusText = document.getElementById('matchmaking-status');
@@ -71,15 +73,25 @@ function updateUI() {
 }
 
 window.changeScene = function(newScene) {
-  Object.values(scenes).forEach(s => s.classList.remove('active'));
-  scenes[newScene].classList.add('active');
-  gameState = newScene;
+  // Show loader briefly
+  scenes['GLOBAL_LOADER'].style.display = 'flex';
+  
+  setTimeout(() => {
+    Object.values(scenes).forEach(s => {
+      if(s) s.classList.remove('active');
+    });
+    
+    if(scenes[newScene]) scenes[newScene].classList.add('active');
+    gameState = newScene;
 
-  if (newScene === 'MAIN_MENU') {
-    statusText.style.display = 'none';
-  } else if (newScene === 'SHOP') {
-    renderShop();
-  }
+    if (newScene === 'MAIN_MENU') {
+      statusText.style.display = 'none';
+    } else if (newScene === 'SHOP') {
+      renderShop();
+    }
+    
+    scenes['GLOBAL_LOADER'].style.display = 'none';
+  }, 500);
 }
 
 // Profile Save Event
@@ -190,7 +202,7 @@ socket.on('matchFound', (data) => {
   saveData.matchesPlayed++;
   saveGame();
   
-  changeScene('GAMEPLAY');
+  changeScene('VERSUS_SCREEN');
 });
 
 socket.on('opponentDisconnected', () => {
@@ -207,6 +219,26 @@ socket.on('opponentDisconnected', () => {
 // ==========================================
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+
+const assets = {
+  home_bg: new Image(),
+  game_bg: new Image(),
+  striker_blue: new Image(),
+  striker_red: new Image(),
+  metal_ball: new Image()
+};
+
+function preloadAssets(callback) {
+  let loaded = 0;
+  const keys = Object.keys(assets);
+  keys.forEach(key => {
+    assets[key].src = `assets/${key}.png`;
+    assets[key].onload = () => {
+      loaded++;
+      if (loaded === keys.length) callback();
+    };
+  });
+}
 
 const keys = {};
 window.addEventListener('keydown', e => keys[e.code] = true);
@@ -243,6 +275,20 @@ let particles = [];
 socket.on('state', (state) => {
   serverState = state;
   spawnTrails(state);
+  
+  if (gameState === 'VERSUS_SCREEN') {
+    document.getElementById('vs-p1-name').innerText = state.p1.username || 'Player 1';
+    document.getElementById('vs-p2-name').innerText = state.p2.username || 'Player 2';
+    
+    if (state.status === 'COUNTDOWN') {
+      document.getElementById('vs-countdown').innerText = state.countdown;
+    } else if (state.status === 'PLAYING') {
+      // Direct DOM swap to avoid loading delay
+      scenes['VERSUS_SCREEN'].classList.remove('active');
+      scenes['GAMEPLAY'].classList.add('active');
+      gameState = 'GAMEPLAY';
+    }
+  }
 });
 
 socket.on('goalScored', (data) => {
@@ -305,19 +351,13 @@ function spawnTrails(state) {
   });
 }
 
-function drawEntity(x, y, radius, color, username) {
-  ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI*2);
-  ctx.fillStyle = color;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 15;
-  ctx.fill();
-  ctx.shadowBlur = 0;
-  
-  ctx.beginPath();
-  ctx.arc(x - radius*0.2, y - radius*0.2, radius*0.4, 0, Math.PI*2);
-  ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.fill();
+function drawEntity(x, y, radius, img, username) {
+  // Draw Asset
+  ctx.save();
+  ctx.translate(x, y);
+  // Optional: rotate by velocity if ball, but for top-down, just draw
+  ctx.drawImage(img, -radius, -radius, radius * 2, radius * 2);
+  ctx.restore();
   
   if (username) {
     ctx.font = 'bold 18px Outfit, sans-serif';
@@ -331,22 +371,9 @@ function drawEntity(x, y, radius, color, username) {
 }
 
 function drawArena() {
-  ctx.strokeStyle = '#111';
-  ctx.lineWidth = 15;
-  ctx.strokeRect(0,0,1200,800);
+  ctx.drawImage(assets.game_bg, 0, 0, 1200, 800);
   
-  ctx.beginPath();
-  ctx.moveTo(600, 0); ctx.lineTo(600, 800);
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-  ctx.lineWidth = 4;
-  ctx.setLineDash([20, 20]);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  
-  ctx.beginPath();
-  ctx.arc(600, 400, 150, 0, Math.PI*2);
-  ctx.stroke();
-  
+  // Goal Zones highlight
   const goalH = 400;
   const goalY = (800 - goalH)/2;
   
@@ -364,15 +391,10 @@ function drawArena() {
 }
 
 function drawGame() {
-  // Clear
-  ctx.fillStyle = gameState === 'GAMEPLAY' ? 'rgba(11, 12, 16, 0.3)' : '#0b0c10';
-  ctx.fillRect(0, 0, 1200, 800);
-
   if (gameState === 'GAMEPLAY' || gameState === 'GAME_OVER') {
     drawArena();
     
     if (serverState) {
-      // Visual Effects
       serverState.fx.forEach(fx => {
         if (fx.type === 'line') {
           ctx.beginPath();
@@ -394,27 +416,22 @@ function drawGame() {
       
       particles.forEach(p => p.draw(ctx));
       
-      drawEntity(serverState.p1.x, serverState.p1.y, 30, '#45f3ff', serverState.p1.username);
-      drawEntity(serverState.p2.x, serverState.p2.y, 30, '#ff45a1', serverState.p2.username);
+      drawEntity(serverState.p1.x, serverState.p1.y, 30, assets.striker_blue, serverState.p1.username);
+      drawEntity(serverState.p2.x, serverState.p2.y, 30, assets.striker_red, serverState.p2.username);
       
       if (serverState.ball.x > 0) {
-        ctx.beginPath();
-        ctx.arc(serverState.ball.x, serverState.ball.y, serverState.ball.radius, 0, Math.PI*2);
-        const grad = ctx.createRadialGradient(serverState.ball.x-5, serverState.ball.y-5, 2, serverState.ball.x, serverState.ball.y, serverState.ball.radius);
-        grad.addColorStop(0, '#fff');
-        grad.addColorStop(0.4, '#aaa');
-        grad.addColorStop(1, '#333');
-        ctx.fillStyle = grad;
-        ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        ctx.save();
+        ctx.translate(serverState.ball.x, serverState.ball.y);
+        ctx.drawImage(assets.metal_ball, -serverState.ball.radius, -serverState.ball.radius, serverState.ball.radius * 2, serverState.ball.radius * 2);
+        ctx.restore();
       }
     }
   } else {
-    // Menu background particles
+    // Menu background
+    ctx.drawImage(assets.home_bg, 0, 0, 1200, 800);
+    
     if (Math.random() < 0.1) {
-      particles.push(new Particle(Math.random()*1200, Math.random()*800, 'rgba(69,243,255,0.1)', 100, Math.random()*3+1));
+      particles.push(new Particle(Math.random()*1200, Math.random()*800, 'rgba(69,243,255,0.2)', 100, Math.random()*3+1));
     }
     particles.forEach(p => p.draw(ctx));
   }
@@ -436,6 +453,9 @@ document.getElementById('return-menu-btn').addEventListener('click', () => {
 });
 
 window.onload = () => {
-  loadSave();
-  loop();
+  preloadAssets(() => {
+    scenes['GLOBAL_LOADER'].style.display = 'none';
+    loadSave();
+    loop();
+  });
 };

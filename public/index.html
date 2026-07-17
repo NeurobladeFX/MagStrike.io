@@ -106,6 +106,28 @@
         <p class="reward-text" id="reward-text"></p>
         <button class="btn primary-btn" id="return-menu-btn">Return to Menu</button>
       </div>
+
+      <!-- Versus Screen -->
+      <div id="versus-screen" class="scene" style="background: #000; z-index: 500;">
+        <div class="vs-container">
+          <div class="vs-player vs-blue">
+            <img src="assets/avatar_1.png" alt="Avatar" class="vs-avatar" id="vs-p1-avatar">
+            <h2 id="vs-p1-name">Player 1</h2>
+          </div>
+          <div class="vs-lightning">VS</div>
+          <div class="vs-player vs-red">
+            <img src="assets/avatar_2.png" alt="Avatar" class="vs-avatar" id="vs-p2-avatar">
+            <h2 id="vs-p2-name">Player 2</h2>
+          </div>
+        </div>
+        <div class="vs-countdown" id="vs-countdown">3</div>
+      </div>
+
+      <!-- Global Loader -->
+      <div id="global-loader" class="scene" style="background: #000; z-index: 999; display: flex;">
+        <div class="loader-ring"></div>
+        <div style="margin-top: 20px; font-weight: bold; color: #45f3ff;">LOADING ASSETS...</div>
+      </div>
       
     </div>
   </div>

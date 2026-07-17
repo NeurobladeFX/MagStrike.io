@@ -71,11 +71,18 @@ class GameRoom {
   start() {
     this.scores = { p1: 0, p2: 0 };
     this.resetPositions();
-    this.gameState = 'PLAYING';
+    this.status = 'COUNTDOWN';
+    this.countdownValue = 3;
     
-    // Run physics at 60Hz
     this.loopInterval = setInterval(() => {
-      this.updatePhysics();
+      if (this.status === 'COUNTDOWN') {
+        this.countdownValue -= 1 / 60;
+        if (this.countdownValue <= 0) {
+          this.status = 'PLAYING';
+        }
+      } else {
+        this.updatePhysics();
+      }
       this.broadcastState();
     }, 1000 / 60);
   }
@@ -235,6 +242,8 @@ class GameRoom {
   
   broadcastState() {
     const state = {
+      status: this.status,
+      countdown: Math.ceil(this.countdownValue),
       p1: { x: this.p1.x, y: this.p1.y, vx: this.p1.vx, vy: this.p1.vy, trail: this.trails[this.p1Id], username: this.usernames[this.p1Id] },
       p2: { x: this.p2.x, y: this.p2.y, vx: this.p2.vx, vy: this.p2.vy, trail: this.trails[this.p2Id], username: this.usernames[this.p2Id] },
       ball: { x: this.ball.x, y: this.ball.y, radius: this.ball.radius },
