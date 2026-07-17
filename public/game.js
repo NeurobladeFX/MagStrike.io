@@ -2,7 +2,19 @@
 const RENDER_URL = 'https://magstrike-io.onrender.com';
 const LOCAL_URL = 'http://localhost:3000';
 
-let socket = io(RENDER_URL, { timeout: 4000 }); // 4 second timeout
+// Mock socket in case of total offline failure or CDN block
+const mockSocket = { on: () => {}, emit: () => {}, disconnect: () => {} };
+let socket = mockSocket;
+
+if (typeof io !== 'undefined') {
+  socket = io(RENDER_URL, { timeout: 4000 }); // 4 second timeout
+} else {
+  console.error("Socket.io failed to load from CDN. Operating in offline UI mode.");
+  setTimeout(() => {
+    document.getElementById('matchmaking-status').innerText = "Network Error: Cannot connect to multiplayer server.";
+    document.getElementById('matchmaking-status').style.display = 'block';
+  }, 1000);
+}
 
 function initSocketFallback() {
   socket.on('connect_error', () => {
