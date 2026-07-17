@@ -504,8 +504,8 @@ function drawGame() {
       }
     }
   } else {
-    // Menu background
-    ctx.drawImage(assets.home_bg, 0, 0, 1200, 800);
+    // Menu background (use the hand-painted grassy arena instead of the AI image)
+    drawArena();
     
     if (Math.random() < 0.1) {
       particles.push(new Particle(Math.random()*1200, Math.random()*800, 'rgba(255,255,255,0.4)', 100, Math.random()*3+1));
