@@ -63,8 +63,19 @@ io.on('connection', (socket) => {
   });
 
   socket.on('joinRoom', (data) => {
-    const code = data.code.toUpperCase();
-    socket.hero = data.hero || 'hero_pig';
+    let code = '';
+    let hero = 'hero_pig';
+    
+    if (typeof data === 'string') {
+      code = data.toUpperCase();
+    } else if (data && data.code) {
+      code = data.code.toUpperCase();
+      hero = data.hero || 'hero_pig';
+    } else {
+      return;
+    }
+    
+    socket.hero = hero;
     
     const room = io.sockets.adapter.rooms.get(code);
     if (room && room.size === 1) {
