@@ -88,11 +88,28 @@
         <button class="btn secondary-btn" onclick="changeScene('MAIN_MENU')">BACK TO WOODS</button>
       </div>
 
-      <!-- Waiting Lobby Scene -->
-      <div id="waiting-lobby" class="scene">
-        <h2 class="scene-title">FINDING A CLEARING</h2>
-        <div class="loader-ring"></div>
-        <div id="waiting-text" class="status-text">LOOKING FOR ANIMALS...</div>
+      <!-- Waiting Lobby / VS Scene -->
+      <div id="waiting-lobby" class="scene menu-transparent">
+        <h2 class="scene-title" id="waiting-title">FINDING A CLEARING</h2>
+        
+        <div class="vs-container">
+          <div class="vs-player">
+            <img id="my-vs-avatar" src="assets/avatar_default.png" alt="Me" class="vs-avatar">
+            <div class="vs-name" id="my-vs-name">YOU</div>
+          </div>
+          
+          <div class="vs-center">
+            <div class="loader-ring" id="vs-loader"></div>
+            <div class="vs-text hidden" id="vs-text" style="font-size: 64px; font-weight: 900; color: #ff7675; text-shadow: 4px 4px 0 #d63031;">VS</div>
+          </div>
+          
+          <div class="vs-player">
+            <img id="enemy-vs-avatar" src="assets/avatar_default.png" alt="Enemy" class="vs-avatar" style="opacity: 0.3; filter: grayscale(1);">
+            <div class="vs-name" id="enemy-vs-name">SEARCHING...</div>
+          </div>
+        </div>
+        
+        <div id="waiting-text" class="status-text" style="margin-top: 20px;">LOOKING FOR ANIMALS...</div>
         <button class="btn secondary-btn" id="cancel-match-btn" style="margin-top: 30px;">CANCEL</button>
       </div>
 

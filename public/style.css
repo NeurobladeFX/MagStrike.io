@@ -145,6 +145,51 @@ canvas {
   text-shadow: 3px 3px 0 #fff, 4px 4px 0 rgba(0,0,0,0.1);
 }
 
+/* VS Screen */
+.vs-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  margin-top: 20px;
+}
+
+.vs-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.vs-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 6px solid #fff;
+  box-shadow: 0 10px 0 rgba(0,0,0,0.1);
+  object-fit: cover;
+  background: #dfe6e9;
+  transition: all 0.3s ease;
+}
+
+.vs-name {
+  font-size: 24px;
+  font-weight: 900;
+  color: #fff;
+  background: #0984e3;
+  padding: 5px 20px;
+  border-radius: 20px;
+  border-bottom: 4px solid #0056b3;
+}
+
+.vs-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+}
+
 /* New Menu Layout */
 .game-logo {
   font-size: 80px;

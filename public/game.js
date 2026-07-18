@@ -149,24 +149,39 @@ window.equipItem = function(id, type) {
 }
 
 // --- Networking ---
+function showWaitingScreen(title, status) {
+  document.getElementById('waiting-title').innerText = title;
+  document.getElementById('waiting-text').innerText = status;
+  
+  // Reset VS screen
+  document.getElementById('vs-loader').classList.remove('hidden');
+  document.getElementById('vs-text').classList.add('hidden');
+  document.getElementById('enemy-vs-avatar').src = 'assets/avatar_default.png';
+  document.getElementById('enemy-vs-avatar').style.opacity = '0.3';
+  document.getElementById('enemy-vs-avatar').style.filter = 'grayscale(1)';
+  document.getElementById('enemy-vs-name').innerText = 'SEARCHING...';
+  
+  // Set my avatar
+  document.getElementById('my-vs-avatar').src = saveData.profileImage || 'assets/avatar_default.png';
+  
+  changeScene('WAITING_LOBBY');
+}
+
 document.getElementById('play-online-btn').addEventListener('click', () => {
   socket.emit('joinRandom');
-  changeScene('WAITING_LOBBY');
-  document.getElementById('waiting-text').innerText = "SEARCHING THE WOODS...";
+  showWaitingScreen("FINDING A CLEARING", "SEARCHING THE WOODS...");
 });
 
 document.getElementById('play-friend-btn').addEventListener('click', () => {
   socket.emit('createRoom');
-  changeScene('WAITING_LOBBY');
-  document.getElementById('waiting-text').innerText = "BUILDING A CLEARING...";
+  showWaitingScreen("BUILDING A CLEARING", "WAITING FOR FRIEND...");
 });
 
 document.getElementById('join-room-btn').addEventListener('click', () => {
   const code = document.getElementById('room-code-input').value.trim();
   if (code) {
     socket.emit('joinRoom', code);
-    changeScene('WAITING_LOBBY');
-    document.getElementById('waiting-text').innerText = "RUNNING TO WOODS...";
+    showWaitingScreen("RUNNING TO WOODS", "CONNECTING...");
   }
 });
 
@@ -197,7 +212,30 @@ socket.on('matchStarted', (data) => {
   document.getElementById('hud-p1').style.borderColor = myPlayerNum === 1 ? '#e84393' : '#dfe6e9'; // Pig pink
   document.getElementById('hud-p2').style.borderColor = myPlayerNum === 2 ? '#fdcb6e' : '#dfe6e9'; // Chicken yellow
   
-  changeScene('GAMEPLAY');
+  // Dramatic VS Screen Reveal!
+  document.getElementById('vs-loader').classList.add('hidden');
+  document.getElementById('vs-text').classList.remove('hidden');
+  document.getElementById('waiting-text').innerText = "MATCH FOUND!";
+  
+  const enemyAvatar = document.getElementById('enemy-vs-avatar');
+  enemyAvatar.style.opacity = '1';
+  enemyAvatar.style.filter = 'grayscale(0)';
+  
+  // For now, if I'm P1 (Pig), enemy is Chicken. Vice versa.
+  if (myPlayerNum === 1) {
+    document.getElementById('my-vs-name').innerText = "PIG (YOU)";
+    enemyAvatar.src = 'assets/avatar_chicken.png';
+    document.getElementById('enemy-vs-name').innerText = "CHICKEN";
+  } else {
+    document.getElementById('my-vs-name').innerText = "CHICKEN (YOU)";
+    enemyAvatar.src = 'assets/avatar_pig.png';
+    document.getElementById('enemy-vs-name').innerText = "PIG";
+  }
+  
+  // Wait 2.5 seconds to show the VS screen before jumping to gameplay
+  setTimeout(() => {
+    changeScene('GAMEPLAY');
+  }, 2500);
 });
 
 // Screen shake logic
