@@ -7,17 +7,12 @@ const GameRoom = require('./gameRoom');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
+  cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Store active rooms
 const rooms = new Map();
-// Queue for random matchmaking
 let matchmakingQueue = null;
 
 io.on('connection', (socket) => {
@@ -26,7 +21,6 @@ io.on('connection', (socket) => {
   // Random Matchmaking
   socket.on('joinRandom', () => {
     if (matchmakingQueue && matchmakingQueue !== socket) {
-      // Match found
       const roomId = `room_${matchmakingQueue.id}_${socket.id}`;
       const p1 = matchmakingQueue;
       const p2 = socket;
@@ -40,15 +34,19 @@ io.on('connection', (socket) => {
       p1.roomId = roomId;
       p2.roomId = roomId;
       
-      p1.emit('matchFound', { roomId, playerNum: 1 });
-      p2.emit('matchFound', { roomId, playerNum: 2 });
+      p1.emit('matchStarted', { roomId, playerNum: 1 });
+      p2.emit('matchStarted', { roomId, playerNum: 2 });
       
       gameRoom.start();
       matchmakingQueue = null;
     } else {
-      // Join queue
       matchmakingQueue = socket;
-      socket.emit('waitingForMatch');
+    }
+  });
+
+  socket.on('leaveQueue', () => {
+    if (matchmakingQueue === socket) {
+      matchmakingQueue = null;
     }
   });
 
@@ -75,32 +73,19 @@ io.on('connection', (socket) => {
       const gameRoom = new GameRoom(roomId, io, p1Id, p2Id);
       rooms.set(roomId, gameRoom);
       
-      io.to(p1Id).emit('matchFound', { roomId, playerNum: 1 });
-      io.to(p2Id).emit('matchFound', { roomId, playerNum: 2 });
+      io.to(p1Id).emit('matchStarted', { roomId, playerNum: 1 });
+      io.to(p2Id).emit('matchStarted', { roomId, playerNum: 2 });
       
       gameRoom.start();
     } else {
-      socket.emit('roomError', 'Room not found or full.');
+      socket.emit('roomError', 'ROOM NOT FOUND OR FULL');
     }
   });
 
-  // Receive input from client
-  socket.on('input', (keys) => {
+  // Turn-based movement intent
+  socket.on('moveIntent', (intent) => {
     if (socket.roomId && rooms.has(socket.roomId)) {
-      rooms.get(socket.roomId).handleInput(socket.id, keys);
-    }
-  });
-  
-  // Equip trail
-  socket.on('equipTrail', (trailId) => {
-    if (socket.roomId && rooms.has(socket.roomId)) {
-      rooms.get(socket.roomId).setPlayerTrail(socket.id, trailId);
-    }
-  });
-
-  socket.on('setProfile', (data) => {
-    if (socket.roomId && rooms.has(socket.roomId)) {
-      rooms.get(socket.roomId).setPlayerUsername(socket.id, data.username);
+      rooms.get(socket.roomId).handleMove(socket.id, intent);
     }
   });
 
@@ -110,9 +95,8 @@ io.on('connection', (socket) => {
     }
     if (socket.roomId && rooms.has(socket.roomId)) {
       const gameRoom = rooms.get(socket.roomId);
-      gameRoom.stop();
       rooms.delete(socket.roomId);
-      io.to(socket.roomId).emit('opponentDisconnected');
+      io.to(socket.roomId).emit('roomError', 'OPPONENT DISCONNECTED');
     }
     console.log(`Player disconnected: ${socket.id}`);
   });
@@ -120,5 +104,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Shadow Grid Server running on http://localhost:${PORT}`);
 });
