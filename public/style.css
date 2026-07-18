@@ -2,16 +2,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
 :root {
-  --bg-color: #050505;
-  --text-color: #ecf0f1;
-  --accent-color: #e74c3c;
-  --grid-line: rgba(255, 255, 255, 0.1);
-  --panel-bg: rgba(15, 15, 15, 0.9);
-  --border-glow: #e74c3c;
+  --bg-color: #0d0221;
+  --text-color: #00f0ff;
+  --accent-color: #ff003c;
+  --grid-line: rgba(0, 240, 255, 0.2);
+  --panel-bg: rgba(13, 2, 33, 0.9);
   
   /* Shop items */
-  --trim-neon: #00cec9;
-  --border-crimson: #e74c3c;
+  --trim-neon: #00f0ff;
+  --border-crimson: #ff003c;
 }
 
 body {

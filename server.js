@@ -82,10 +82,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Turn-based movement intent
-  socket.on('moveIntent', (intent) => {
+  // Real-time input
+  socket.on('input', (keys) => {
     if (socket.roomId && rooms.has(socket.roomId)) {
-      rooms.get(socket.roomId).handleMove(socket.id, intent);
+      rooms.get(socket.roomId).handleInput(socket.id, keys);
     }
   });
 

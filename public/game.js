@@ -5,6 +5,18 @@ const ctx = canvas.getContext('2d');
 let gameState = 'MAIN_MENU';
 let myPlayerNum = 0;
 let roomCode = '';
+let serverState = null;
+
+// --- Input Handling ---
+const keys = {};
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup', e => keys[e.key] = false);
+
+setInterval(() => {
+  if (gameState === 'GAMEPLAY') {
+    socket.emit('input', keys);
+  }
+}, 1000 / 60);
 
 // --- Local Save Data ---
 let saveData = {
@@ -82,7 +94,7 @@ document.getElementById('avatar-upload').addEventListener('change', (e) => {
 
 // --- Shop Logic ---
 const SHOP_ITEMS = [
-  { id: 'skin_neon', name: 'Neon Trim (Spider)', type: 'skin', price: 200 },
+  { id: 'skin_neon', name: 'Neon Glitch (Player Glow)', type: 'skin', price: 200 },
   { id: 'border_crimson', name: 'Crimson Red UI Border', type: 'border', price: 100 },
   { id: 'frame_custom', name: 'Custom Avatar Frame', type: 'frame', price: 150 }
 ];
@@ -182,28 +194,46 @@ socket.on('matchStarted', (data) => {
   saveData.matches++;
   saveGame();
   
-  document.getElementById('hud-p1').style.borderColor = myPlayerNum === 1 ? '#e74c3c' : '#333';
-  document.getElementById('hud-p2').style.borderColor = myPlayerNum === 2 ? '#e74c3c' : '#333';
+  document.getElementById('hud-p1').style.borderColor = myPlayerNum === 1 ? '#00f0ff' : '#333';
+  document.getElementById('hud-p2').style.borderColor = myPlayerNum === 2 ? '#ff003c' : '#333';
   
   changeScene('GAMEPLAY');
+});
+
+// Screen shake logic
+let screenShake = 0;
+socket.on('shiftPulse', () => {
+  screenShake = 15;
+  // Flash body for dramatic effect
+  document.body.style.backgroundColor = '#9b59b6';
+  setTimeout(() => document.body.style.backgroundColor = 'var(--bg-color)', 50);
 });
 
 socket.on('gameState', (state) => {
   serverState = state;
   
   // Update HUD
-  document.getElementById('p1-stars').innerText = `${state.scores.p1} / 3`;
-  document.getElementById('p2-stars').innerText = `${state.scores.p2} / 3`;
+  const timer = document.getElementById('shift-timer');
+  timer.innerText = `SHIFT IN: ${state.timer.toFixed(1)}`;
   
-  const indicator = document.getElementById('turn-indicator');
-  if (state.turn === myPlayerNum) {
-    indicator.innerText = "YOUR TURN";
-    indicator.style.color = "#2ecc71";
-    indicator.style.borderColor = "#2ecc71";
+  if (state.timer < 1.5) {
+    timer.style.color = '#ff003c';
+    timer.style.borderColor = '#ff003c';
+    timer.style.transform = `scale(${1 + Math.random()*0.1})`;
   } else {
-    indicator.innerText = "ENEMY TURN";
-    indicator.style.color = "#e74c3c";
-    indicator.style.borderColor = "#e74c3c";
+    timer.style.color = '#00f0ff';
+    timer.style.borderColor = '#00f0ff';
+    timer.style.transform = 'scale(1)';
+  }
+  
+  // Update Player names to show if they are glitched
+  const myInverted = state.invertedPlayer === myPlayerNum;
+  if (myInverted) {
+    document.getElementById(`hud-p${myPlayerNum}`).style.color = '#9b59b6';
+    document.getElementById(`hud-p${myPlayerNum}`).innerText = 'P' + myPlayerNum + ' [INVERTED]';
+  } else {
+    document.getElementById(`hud-p${myPlayerNum}`).style.color = myPlayerNum === 1 ? '#00f0ff' : '#ff003c';
+    document.getElementById(`hud-p${myPlayerNum}`).innerText = 'P' + myPlayerNum + ' [NORMAL]';
   }
 });
 
@@ -218,85 +248,73 @@ socket.on('gameOver', (data) => {
     saveGame();
   } else {
     document.getElementById('winner-text').innerText = "SYSTEM COMPROMISED";
-    document.getElementById('winner-text').style.color = "#e74c3c";
+    document.getElementById('winner-text').style.color = "#ff003c";
     document.getElementById('reward-text').innerText = "";
   }
   changeScene('GAME_OVER');
 });
 
 // --- Game Engine Rendering ---
-let serverState = null;
-const TILE_SIZE = 100; // 800 / 8
 
-function drawSpider(x, y, isEnemy, hasNeon) {
+function drawPlayer(p, color, isInverted, hasSkin) {
   ctx.save();
-  ctx.translate(x * TILE_SIZE + TILE_SIZE/2, y * TILE_SIZE + TILE_SIZE/2);
+  ctx.translate(p.x, p.y);
   
-  // Core body
-  ctx.fillStyle = isEnemy ? '#c0392b' : '#3498db';
-  if (!isEnemy && hasNeon) {
-    ctx.shadowColor = '#00cec9';
-    ctx.shadowBlur = 15;
+  if (hasSkin) {
+    ctx.shadowColor = isInverted ? '#9b59b6' : color;
+    ctx.shadowBlur = 20;
   }
+  
+  if (isInverted) {
+    // Glitchy purple look
+    ctx.fillStyle = '#9b59b6';
+    // Jitter randomly
+    ctx.translate((Math.random()-0.5)*4, (Math.random()-0.5)*4);
+  } else {
+    ctx.fillStyle = color;
+  }
+  
   ctx.beginPath();
-  ctx.arc(0, 0, 20, 0, Math.PI*2);
+  ctx.arc(0, 0, p.radius, 0, Math.PI*2);
   ctx.fill();
-  ctx.shadowBlur = 0;
   
-  // 6 Legs
-  ctx.strokeStyle = '#7f8c8d';
-  ctx.lineWidth = 4;
-  for(let i=0; i<6; i++) {
-    const angle = (i * Math.PI*2/6) + Math.PI/6;
-    ctx.beginPath();
-    ctx.moveTo(Math.cos(angle)*20, Math.sin(angle)*20);
-    ctx.lineTo(Math.cos(angle)*35, Math.sin(angle)*35);
-    ctx.stroke();
-  }
+  // Eye indicating forward direction
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, isInverted ? 10 : -10, 5, 0, Math.PI*2);
+  ctx.fill();
+  
   ctx.restore();
 }
 
-function drawStar(x, y) {
-  ctx.save();
-  ctx.translate(x * TILE_SIZE + TILE_SIZE/2, y * TILE_SIZE + TILE_SIZE/2);
-  ctx.fillStyle = '#e74c3c';
+function drawArena() {
+  // Safe Zones
+  ctx.fillStyle = 'rgba(0, 240, 255, 0.1)';
+  ctx.fillRect(0, 700, 800, 100); // Bottom zone (Blue)
   
-  ctx.beginPath();
-  for(let i=0; i<5; i++) {
-    ctx.lineTo(Math.cos((18 + i*72)/180*Math.PI)*20, -Math.sin((18 + i*72)/180*Math.PI)*20);
-    ctx.lineTo(Math.cos((54 + i*72)/180*Math.PI)*10, -Math.sin((54 + i*72)/180*Math.PI)*10);
-  }
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawGrid() {
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-  ctx.lineWidth = 2;
+  ctx.fillStyle = 'rgba(255, 0, 60, 0.1)';
+  ctx.fillRect(0, 0, 800, 100); // Top zone (Red)
   
-  for(let i=0; i<=8; i++) {
-    ctx.beginPath();
-    ctx.moveTo(i*TILE_SIZE, 0);
-    ctx.lineTo(i*TILE_SIZE, 800);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.moveTo(0, i*TILE_SIZE);
-    ctx.lineTo(800, i*TILE_SIZE);
-    ctx.stroke();
+  // Grid Lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  for(let i=0; i<800; i+=40) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 800); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(800, i); ctx.stroke();
   }
-}
-
-function drawFogOfWar(fogMap) {
-  // fogMap is a 2D array [8][8], true if visible
-  for(let x=0; x<8; x++) {
-    for(let y=0; y<8; y++) {
-      if (!fogMap || !fogMap[x] || !fogMap[x][y]) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-        ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
-      }
-    }
+  
+  // Maze
+  if (serverState && serverState.maze) {
+    ctx.fillStyle = '#111';
+    ctx.strokeStyle = '#ff003c';
+    ctx.lineWidth = 2;
+    serverState.maze.forEach(b => {
+      ctx.shadowColor = '#ff003c';
+      ctx.shadowBlur = 10;
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeRect(b.x, b.y, b.w, b.h);
+      ctx.shadowBlur = 0;
+    });
   }
 }
 
@@ -305,86 +323,42 @@ function loop() {
   
   if (gameState === 'GAMEPLAY' && serverState) {
     if (saveData.equippedBorder === 'border_crimson') {
-      canvas.style.borderColor = '#e74c3c';
+      canvas.style.borderColor = '#ff003c';
     } else {
       canvas.style.borderColor = '#222';
     }
 
-    drawGrid();
-    
-    // Draw stars
-    if (serverState.stars) {
-      serverState.stars.forEach(s => drawStar(s.x, s.y));
+    ctx.save();
+    if (screenShake > 0) {
+      ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
+      screenShake -= 1;
     }
     
-    // Draw players
-    const myPos = myPlayerNum === 1 ? serverState.p1 : serverState.p2;
-    const enemyPos = myPlayerNum === 1 ? serverState.p2 : serverState.p1;
+    drawArena();
     
-    // Enemy is only drawn if in our fog map
-    const fog = myPlayerNum === 1 ? serverState.fog1 : serverState.fog2;
-    if (fog && fog[enemyPos.x] && fog[enemyPos.x][enemyPos.y]) {
-      drawSpider(enemyPos.x, enemyPos.y, true, false);
-    }
+    // Draw Players
+    const p1Inverted = serverState.invertedPlayer === 1;
+    const p2Inverted = serverState.invertedPlayer === 2;
+    const hasSkin = saveData.equippedSkin === 'skin_neon';
     
-    drawSpider(myPos.x, myPos.y, false, saveData.equippedSkin === 'skin_neon');
-    drawFogOfWar(fog);
+    drawPlayer(serverState.p1, '#00f0ff', p1Inverted, myPlayerNum===1 ? hasSkin : false);
+    drawPlayer(serverState.p2, '#ff003c', p2Inverted, myPlayerNum===2 ? hasSkin : false);
     
-    // Highlight hovered tile if it's our turn
-    if (serverState.turn === myPlayerNum && hoveredTile) {
-      // Must be adjacent (manhattan distance == 1)
-      const dist = Math.abs(hoveredTile.x - myPos.x) + Math.abs(hoveredTile.y - myPos.y);
-      if (dist === 1 || dist === 0) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.fillRect(hoveredTile.x*TILE_SIZE, hoveredTile.y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
-      }
-    }
+    ctx.restore();
   }
   
   requestAnimationFrame(loop);
 }
 
-// --- Interaction ---
-let hoveredTile = null;
-
-canvas.addEventListener('mousemove', (e) => {
-  if (gameState !== 'GAMEPLAY') return;
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = 800 / rect.width;
-  const scaleY = 800 / rect.height;
-  
-  const cx = (e.clientX - rect.left) * scaleX;
-  const cy = (e.clientY - rect.top) * scaleY;
-  
-  hoveredTile = {
-    x: Math.floor(cx / TILE_SIZE),
-    y: Math.floor(cy / TILE_SIZE)
-  };
-});
-
-canvas.addEventListener('click', () => {
-  if (gameState !== 'GAMEPLAY' || !serverState || serverState.turn !== myPlayerNum || !hoveredTile) return;
-  
-  const myPos = myPlayerNum === 1 ? serverState.p1 : serverState.p2;
-  const dist = Math.abs(hoveredTile.x - myPos.x) + Math.abs(hoveredTile.y - myPos.y);
-  
-  if (dist === 1) { // Can only move 1 tile orthogonally
-    socket.emit('moveIntent', hoveredTile);
-  }
-});
-
 // Init
 window.onload = () => {
   loadSave();
   
-  // UI Layer Scaling
   const uiLayer = document.getElementById('ui-layer');
   const wrapper = document.getElementById('game-wrapper');
   if (uiLayer && wrapper) {
     const resizeObserver = new ResizeObserver(entries => {
       for (let entry of entries) {
-        // Wrapper uses max-height 100vmin, so its size is dynamic. 
-        // We scale UI layer to match.
         let rect = entry.contentRect;
         let scale = Math.min(rect.width / 800, rect.height / 800);
         uiLayer.style.transform = `translate(-50%, -50%) scale(${scale})`;
