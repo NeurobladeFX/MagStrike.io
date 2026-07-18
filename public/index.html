@@ -12,22 +12,25 @@
   <div class="game-wrapper" id="game-wrapper">
     <canvas id="gameCanvas" width="800" height="800"></canvas>
     
-    <!-- UI Overlay Layer -->
-    <div id="ui-layer">
-      
-      <!-- Persistent Currency HUD -->
-      <div id="currency-hud" class="currency-badge">
-        ACORNS: <span id="coin-count">0</span>
+      <!-- Global HUD (Top Left & Top Right) -->
+      <div id="global-hud">
+        <button class="profile-corner-btn" onclick="changeScene('PROFILE')" title="View Profile">
+          <div class="profile-icon">👤</div>
+          <span>PROFILE</span>
+        </button>
+        <div id="currency-hud" class="currency-badge">
+          ACORNS: <span id="coin-count">0</span>
+        </div>
       </div>
 
       <!-- Main Menu Scene -->
       <div id="main-menu" class="scene active menu-transparent">
-        <h1 class="game-logo">WACKY<br>WOODS</h1>
-        
-        <div class="menu-layout">
+        <div class="menu-center-wrapper">
+          <h1 class="game-logo">WACKY<br>WOODS</h1>
+          
           <button class="menu-btn giant-play-btn" id="play-online-btn">
-            <span class="btn-title" style="font-size: 36px; color: #d35400;">PLAY NOW!</span>
-            <span class="btn-desc" style="color: #e17055;">Find Random Animals</span>
+            <span class="btn-title" style="font-size: 42px; color: #d35400;">PLAY NOW!</span>
+            <span class="btn-desc" style="color: #e17055; font-size: 18px;">Find Random Animals</span>
           </button>
           
           <div class="menu-row">
@@ -39,8 +42,7 @@
           </div>
 
           <div class="menu-row bottom-row">
-            <button class="menu-btn icon-btn" onclick="changeScene('PROFILE')">PROFILE</button>
-            <button class="menu-btn icon-btn" onclick="changeScene('SHOP')">SHOP</button>
+            <button class="menu-btn icon-btn" onclick="changeScene('SHOP')">🛒 SHOP</button>
           </div>
         </div>
       </div>

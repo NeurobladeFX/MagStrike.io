@@ -324,20 +324,31 @@ function drawArena() {
 }
 
 function loop() {
-  ctx.clearRect(0, 0, 800, 800);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   
   if (gameState === 'GAMEPLAY' && serverState) {
-    if (saveData.equippedBorder === 'border_crimson') {
-      canvas.style.borderColor = '#8b4513'; // Muddy border
-    } else {
-      canvas.style.borderColor = '#saddlebrown';
-    }
-
     ctx.save();
+    
+    // Scale and center the 800x800 arena
+    const scale = Math.min(canvas.width / 800, canvas.height / 800) * 0.95; // 95% to leave a tiny padding
+    const offsetX = (canvas.width - (800 * scale)) / 2;
+    const offsetY = (canvas.height - (800 * scale)) / 2;
+    
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
+
     if (screenShake > 0) {
       ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
       screenShake -= 1;
     }
+    
+    // Draw the arena background and border
+    ctx.fillStyle = '#55efc4';
+    ctx.fillRect(0, 0, 800, 800);
+    
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = saveData.equippedBorder === 'border_crimson' ? '#8b4513' : '#saddlebrown';
+    ctx.strokeRect(0, 0, 800, 800);
     
     drawArena();
     
@@ -359,18 +370,12 @@ function loop() {
 window.onload = () => {
   loadSave();
   
-  const uiLayer = document.getElementById('ui-layer');
-  const wrapper = document.getElementById('game-wrapper');
-  if (uiLayer && wrapper) {
-    const resizeObserver = new ResizeObserver(entries => {
-      for (let entry of entries) {
-        let rect = entry.contentRect;
-        let scale = Math.min(rect.width / 800, rect.height / 800);
-        uiLayer.style.transform = `translate(-50%, -50%) scale(${scale})`;
-      }
-    });
-    resizeObserver.observe(wrapper);
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
   }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
   
   loop();
 };
