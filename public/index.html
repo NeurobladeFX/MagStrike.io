@@ -15,37 +15,33 @@
     <!-- UI Overlay Layer -->
     <div id="ui-layer">
       
-      <!-- Navbar (Only visible in Menus) -->
-      <nav id="navbar">
-        <div class="nav-brand">WACKY WOODS</div>
-        <div class="nav-coins">ACORNS: <span id="coin-count">0</span></div>
-      </nav>
+      <!-- Persistent Currency HUD -->
+      <div id="currency-hud" class="currency-badge">
+        ACORNS: <span id="coin-count">0</span>
+      </div>
 
       <!-- Main Menu Scene -->
-      <div id="main-menu" class="scene active">
-        <div class="main-menu-grid">
-          <button class="menu-btn" id="play-online-btn">
-            <span class="btn-title">PLAY ONLINE</span>
-            <span class="btn-desc">Random Animal</span>
-          </button>
-          <button class="menu-btn" id="play-friend-btn">
-            <span class="btn-title">PLAY WITH FRIEND</span>
-            <span class="btn-desc">Create Forest</span>
+      <div id="main-menu" class="scene active menu-transparent">
+        <h1 class="game-logo">WACKY<br>WOODS</h1>
+        
+        <div class="menu-layout">
+          <button class="menu-btn giant-play-btn" id="play-online-btn">
+            <span class="btn-title" style="font-size: 36px; color: #d35400;">PLAY NOW!</span>
+            <span class="btn-desc" style="color: #e17055;">Find Random Animals</span>
           </button>
           
-          <div class="join-room-box">
-            <input type="text" id="room-code-input" placeholder="ENTER CODE" maxlength="6">
-            <button class="menu-btn join-btn" id="join-room-btn">JOIN</button>
+          <div class="menu-row">
+            <button class="menu-btn side-btn" id="play-friend-btn">CREATE FOREST</button>
+            <div class="join-room-box">
+              <input type="text" id="room-code-input" placeholder="CODE" maxlength="6">
+              <button class="menu-btn join-btn" id="join-room-btn">JOIN</button>
+            </div>
           </div>
 
-          <button class="menu-btn" onclick="changeScene('PROFILE')">
-            <span class="btn-title">PROFILE</span>
-            <span class="btn-desc">Stats & Avatar</span>
-          </button>
-          <button class="menu-btn" onclick="changeScene('SHOP')">
-            <span class="btn-title">SHOP</span>
-            <span class="btn-desc">Cosmetics</span>
-          </button>
+          <div class="menu-row bottom-row">
+            <button class="menu-btn icon-btn" onclick="changeScene('PROFILE')">PROFILE</button>
+            <button class="menu-btn icon-btn" onclick="changeScene('SHOP')">SHOP</button>
+          </div>
         </div>
       </div>
 
