@@ -23,10 +23,8 @@ let saveData = {
   matches: 0,
   wins: 0,
   coins: 0,
-  ownedItems: [],
-  equippedSkin: null,
-  equippedBorder: null,
-  equippedFrame: null,
+  ownedItems: ['hero_pig'], // Everyone starts with Pig
+  equippedHero: 'hero_pig',
   profileImage: ''
 };
 
@@ -35,6 +33,10 @@ function loadSave() {
   if (data) {
     try {
       saveData = { ...saveData, ...JSON.parse(data) };
+      // Ensure they have Pig
+      if (!saveData.ownedItems) saveData.ownedItems = ['hero_pig'];
+      if (!saveData.ownedItems.includes('hero_pig')) saveData.ownedItems.push('hero_pig');
+      if (!saveData.equippedHero) saveData.equippedHero = 'hero_pig';
     } catch (e) { console.error("Corrupt save"); }
   }
   updateUI();
@@ -53,14 +55,8 @@ function updateUI() {
   const winrate = saveData.matches > 0 ? Math.round((saveData.wins / saveData.matches) * 100) : 0;
   document.getElementById('stat-winrate').innerText = winrate + '%';
   
-  const frameContainer = document.getElementById('avatar-frame-container');
-  frameContainer.className = 'avatar-frame-default';
-  if (saveData.equippedFrame === 'frame_crimson') frameContainer.classList.add('frame-crimson');
-  if (saveData.equippedFrame === 'frame_custom') frameContainer.classList.add('frame-custom');
-  
-  if (saveData.profileImage) {
-    document.getElementById('profile-avatar-preview').src = saveData.profileImage;
-  }
+  // Set Profile Image to equipped hero
+  document.getElementById('profile-avatar-preview').src = `assets/${saveData.equippedHero}.png`;
 }
 
 // --- Scene Management ---
@@ -68,10 +64,13 @@ function changeScene(sceneId) {
   document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
   document.getElementById('in-game-hud').classList.add('hidden');
   
+  // Show/Hide Global HUD based on Gameplay
   if (sceneId === 'GAMEPLAY') {
+    document.getElementById('global-hud').classList.add('hidden');
     document.getElementById('in-game-hud').classList.remove('hidden');
     gameState = 'GAMEPLAY';
   } else {
+    document.getElementById('global-hud').classList.remove('hidden');
     document.getElementById(sceneId.toLowerCase().replace('_', '-')).classList.add('active');
     gameState = sceneId;
     if (sceneId === 'SHOP') renderShop();
@@ -94,9 +93,11 @@ document.getElementById('avatar-upload').addEventListener('change', (e) => {
 
 // --- Shop Logic ---
 const SHOP_ITEMS = [
-  { id: 'skin_neon', name: 'Silly Top Hat', type: 'skin', price: 200 },
-  { id: 'border_crimson', name: 'Muddy UI Border', type: 'border', price: 100 },
-  { id: 'frame_custom', name: 'Leafy Avatar Frame', type: 'frame', price: 150 }
+  { id: 'hero_chicken', name: 'Yellow Chicken', type: 'hero', price: 100 },
+  { id: 'hero_bear', name: 'Brown Bear', type: 'hero', price: 150 },
+  { id: 'hero_frog', name: 'Green Frog', type: 'hero', price: 200 },
+  { id: 'hero_cat', name: 'Orange Cat', type: 'hero', price: 250 },
+  { id: 'hero_dog', name: 'Blue Dog', type: 'hero', price: 300 }
 ];
 
 function renderShop() {
@@ -105,10 +106,7 @@ function renderShop() {
   
   SHOP_ITEMS.forEach(item => {
     const isOwned = saveData.ownedItems.includes(item.id);
-    let isEquipped = false;
-    if (item.type === 'skin') isEquipped = (saveData.equippedSkin === item.id);
-    if (item.type === 'border') isEquipped = (saveData.equippedBorder === item.id);
-    if (item.type === 'frame') isEquipped = (saveData.equippedFrame === item.id);
+    let isEquipped = (saveData.equippedHero === item.id);
     
     const div = document.createElement('div');
     div.className = 'shop-item';
@@ -123,6 +121,7 @@ function renderShop() {
     }
     
     div.innerHTML = `
+      <img src="assets/${item.id}.png" style="width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff; margin-bottom: 10px;">
       <div class="item-name">${item.name}</div>
       <div class="item-price">${isOwned ? 'OWNED' : `ACORNS: ${item.price}`}</div>
       ${btnHtml}
@@ -141,12 +140,18 @@ window.buyItem = function(id, price) {
 }
 
 window.equipItem = function(id, type) {
-  if (type === 'skin') saveData.equippedSkin = id;
-  if (type === 'border') saveData.equippedBorder = id;
-  if (type === 'frame') saveData.equippedFrame = id;
+  if (type === 'hero') saveData.equippedHero = id;
   saveGame();
   renderShop();
 }
+
+// --- Image Preloading ---
+const IMAGES = {};
+['hero_pig', 'hero_chicken', 'hero_bear', 'hero_frog', 'hero_cat', 'hero_dog'].forEach(name => {
+  const img = new Image();
+  img.src = `assets/${name}.png`;
+  IMAGES[name] = img;
+});
 
 // --- Networking ---
 function showWaitingScreen(title, status) {
@@ -162,25 +167,26 @@ function showWaitingScreen(title, status) {
   document.getElementById('enemy-vs-name').innerText = 'SEARCHING...';
   
   // Set my avatar
-  document.getElementById('my-vs-avatar').src = saveData.profileImage || 'assets/avatar_default.png';
+  document.getElementById('my-vs-avatar').src = `assets/${saveData.equippedHero}.png`;
+  document.getElementById('my-vs-name').innerText = "YOU";
   
   changeScene('WAITING_LOBBY');
 }
 
 document.getElementById('play-online-btn').addEventListener('click', () => {
-  socket.emit('joinRandom');
+  socket.emit('joinRandom', { hero: saveData.equippedHero });
   showWaitingScreen("FINDING A CLEARING", "SEARCHING THE WOODS...");
 });
 
 document.getElementById('play-friend-btn').addEventListener('click', () => {
-  socket.emit('createRoom');
+  socket.emit('createRoom', { hero: saveData.equippedHero });
   showWaitingScreen("BUILDING A CLEARING", "WAITING FOR FRIEND...");
 });
 
 document.getElementById('join-room-btn').addEventListener('click', () => {
   const code = document.getElementById('room-code-input').value.trim();
   if (code) {
-    socket.emit('joinRoom', code);
+    socket.emit('joinRoom', { code, hero: saveData.equippedHero });
     showWaitingScreen("RUNNING TO WOODS", "CONNECTING...");
   }
 });
@@ -203,14 +209,20 @@ socket.on('roomError', (msg) => {
   setTimeout(() => changeScene('MAIN_MENU'), 2000);
 });
 
+let myHeroId = 'hero_pig';
+let enemyHeroId = 'hero_chicken';
+
 socket.on('matchStarted', (data) => {
   myPlayerNum = data.playerNum;
   roomCode = data.roomId;
+  myHeroId = saveData.equippedHero;
+  enemyHeroId = data.enemyHero || 'hero_pig';
+  
   saveData.matches++;
   saveGame();
   
-  document.getElementById('hud-p1').style.borderColor = myPlayerNum === 1 ? '#e84393' : '#dfe6e9'; // Pig pink
-  document.getElementById('hud-p2').style.borderColor = myPlayerNum === 2 ? '#fdcb6e' : '#dfe6e9'; // Chicken yellow
+  document.getElementById('hud-p1').style.borderColor = myPlayerNum === 1 ? '#0984e3' : '#dfe6e9';
+  document.getElementById('hud-p2').style.borderColor = myPlayerNum === 2 ? '#d63031' : '#dfe6e9';
   
   // Dramatic VS Screen Reveal!
   document.getElementById('vs-loader').classList.add('hidden');
@@ -220,19 +232,16 @@ socket.on('matchStarted', (data) => {
   const enemyAvatar = document.getElementById('enemy-vs-avatar');
   enemyAvatar.style.opacity = '1';
   enemyAvatar.style.filter = 'grayscale(0)';
+  enemyAvatar.src = `assets/${enemyHeroId}.png`;
   
-  // For now, if I'm P1 (Pig), enemy is Chicken. Vice versa.
   if (myPlayerNum === 1) {
-    document.getElementById('my-vs-name').innerText = "PIG (YOU)";
-    enemyAvatar.src = 'assets/avatar_chicken.png';
-    document.getElementById('enemy-vs-name').innerText = "CHICKEN";
+    document.getElementById('my-vs-name').innerText = "P1 (YOU)";
+    document.getElementById('enemy-vs-name').innerText = "P2";
   } else {
-    document.getElementById('my-vs-name').innerText = "CHICKEN (YOU)";
-    enemyAvatar.src = 'assets/avatar_pig.png';
-    document.getElementById('enemy-vs-name').innerText = "PIG";
+    document.getElementById('my-vs-name').innerText = "P2 (YOU)";
+    document.getElementById('enemy-vs-name').innerText = "P1";
   }
   
-  // Wait 2.5 seconds to show the VS screen before jumping to gameplay
   setTimeout(() => {
     changeScene('GAMEPLAY');
   }, 2500);
@@ -249,7 +258,6 @@ socket.on('shiftPulse', () => {
 socket.on('gameState', (state) => {
   serverState = state;
   
-  // Update HUD
   const timer = document.getElementById('shift-timer');
   timer.innerText = `DIZZY IN: ${state.timer.toFixed(1)}`;
   
@@ -266,10 +274,10 @@ socket.on('gameState', (state) => {
   const myInverted = state.invertedPlayer === myPlayerNum;
   if (myInverted) {
     document.getElementById(`hud-p${myPlayerNum}`).style.color = '#d63031';
-    document.getElementById(`hud-p${myPlayerNum}`).innerText = myPlayerNum === 1 ? 'PIG [DIZZY!]' : 'CHICKEN [DIZZY!]';
+    document.getElementById(`hud-p${myPlayerNum}`).innerText = myPlayerNum === 1 ? 'P1 [DIZZY!]' : 'P2 [DIZZY!]';
   } else {
-    document.getElementById(`hud-p${myPlayerNum}`).style.color = myPlayerNum === 1 ? '#e84393' : '#e17055';
-    document.getElementById(`hud-p${myPlayerNum}`).innerText = myPlayerNum === 1 ? 'PIG [READY]' : 'CHICKEN [READY]';
+    document.getElementById(`hud-p${myPlayerNum}`).style.color = myPlayerNum === 1 ? '#0984e3' : '#d63031';
+    document.getElementById(`hud-p${myPlayerNum}`).innerText = myPlayerNum === 1 ? 'P1 [READY]' : 'P2 [READY]';
   }
 });
 
@@ -292,34 +300,20 @@ socket.on('gameOver', (data) => {
 
 // --- Game Engine Rendering ---
 
-function drawPlayer(p, playerNum, isInverted, hasSkin) {
+function drawPlayer(p, playerNum, isInverted) {
   ctx.save();
   ctx.translate(p.x, p.y);
   
-  if (playerNum === 1) {
-    // Draw Pig
-    ctx.fillStyle = '#fab1a0';
-    ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#e17055';
-    ctx.beginPath(); ctx.arc(0, -10, 10, 0, Math.PI*2); ctx.fill(); // snout
-    ctx.fillStyle = '#fab1a0';
-    ctx.beginPath(); ctx.arc(-15, -15, 8, 0, Math.PI*2); ctx.fill(); // ears
-    ctx.beginPath(); ctx.arc(15, -15, 8, 0, Math.PI*2); ctx.fill();
-  } else {
-    // Draw Chicken
-    ctx.fillStyle = '#ffeaa7';
-    ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#d35400';
-    ctx.beginPath(); ctx.moveTo(-5, -5); ctx.lineTo(5, -5); ctx.lineTo(0, -18); ctx.fill(); // beak
-    ctx.fillStyle = '#d63031';
-    ctx.beginPath(); ctx.arc(0, 15, 6, 0, Math.PI*2); ctx.fill(); // wattle
-  }
+  const heroId = (playerNum === myPlayerNum) ? myHeroId : enemyHeroId;
+  const img = IMAGES[heroId];
   
-  if (hasSkin) {
-    // Draw Silly Top Hat
-    ctx.fillStyle = '#2d3436';
-    ctx.fillRect(-15, -p.radius-5, 30, 5);
-    ctx.fillRect(-10, -p.radius-25, 20, 20);
+  if (img && img.complete) {
+    // Draw the generated top-down image sprite
+    ctx.drawImage(img, -p.radius, -p.radius, p.radius*2, p.radius*2);
+  } else {
+    // Fallback simple circle
+    ctx.fillStyle = playerNum === 1 ? '#e84393' : '#fdcb6e';
+    ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
   }
   
   if (isInverted) {
@@ -329,7 +323,7 @@ function drawPlayer(p, playerNum, isInverted, hasSkin) {
     for(let i=0; i<3; i++) {
       const angle = time + (i * Math.PI*2/3);
       ctx.beginPath();
-      ctx.arc(Math.cos(angle)*30, Math.sin(angle)*30, 5, 0, Math.PI*2);
+      ctx.arc(Math.cos(angle)*(p.radius+10), Math.sin(angle)*(p.radius+10), 5, 0, Math.PI*2);
       ctx.fill();
     }
   }
@@ -393,10 +387,9 @@ function loop() {
     // Draw Players
     const p1Inverted = serverState.invertedPlayer === 1;
     const p2Inverted = serverState.invertedPlayer === 2;
-    const hasSkin = saveData.equippedSkin === 'skin_neon';
     
-    drawPlayer(serverState.p1, 1, p1Inverted, myPlayerNum===1 ? hasSkin : false);
-    drawPlayer(serverState.p2, 2, p2Inverted, myPlayerNum===2 ? hasSkin : false);
+    drawPlayer(serverState.p1, 1, p1Inverted);
+    drawPlayer(serverState.p2, 2, p2Inverted);
     
     ctx.restore();
   }

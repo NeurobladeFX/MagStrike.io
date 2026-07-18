@@ -19,13 +19,15 @@ io.on('connection', (socket) => {
   console.log(`Player connected: ${socket.id}`);
 
   // Random Matchmaking
-  socket.on('joinRandom', () => {
+  socket.on('joinRandom', (data) => {
+    socket.hero = data ? data.hero : 'hero_pig';
+    
     if (matchmakingQueue && matchmakingQueue !== socket) {
       const roomId = `room_${matchmakingQueue.id}_${socket.id}`;
       const p1 = matchmakingQueue;
       const p2 = socket;
       
-      const gameRoom = new GameRoom(roomId, io, p1.id, p2.id);
+      const gameRoom = new GameRoom(roomId, io, p1.id, p2.id, p1.hero, p2.hero);
       rooms.set(roomId, gameRoom);
       
       p1.join(roomId);
@@ -34,8 +36,8 @@ io.on('connection', (socket) => {
       p1.roomId = roomId;
       p2.roomId = roomId;
       
-      p1.emit('matchStarted', { roomId, playerNum: 1 });
-      p2.emit('matchStarted', { roomId, playerNum: 2 });
+      p1.emit('matchStarted', { roomId, playerNum: 1, enemyHero: p2.hero });
+      p2.emit('matchStarted', { roomId, playerNum: 2, enemyHero: p1.hero });
       
       gameRoom.start();
       matchmakingQueue = null;
@@ -51,7 +53,8 @@ io.on('connection', (socket) => {
   });
 
   // Friend Rooms
-  socket.on('createRoom', () => {
+  socket.on('createRoom', (data) => {
+    socket.hero = data ? data.hero : 'hero_pig';
     const roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
     socket.join(roomId);
     socket.roomId = roomId;
@@ -59,26 +62,28 @@ io.on('connection', (socket) => {
     socket.emit('roomCreated', roomId);
   });
 
-  socket.on('joinRoom', (roomId) => {
-    roomId = roomId.toUpperCase();
-    const roomClients = io.sockets.adapter.rooms.get(roomId);
+  socket.on('joinRoom', (data) => {
+    const code = data.code.toUpperCase();
+    socket.hero = data.hero || 'hero_pig';
     
-    if (roomClients && roomClients.size === 1) {
-      socket.join(roomId);
-      socket.roomId = roomId;
+    const room = io.sockets.adapter.rooms.get(code);
+    if (room && room.size === 1) {
+      const p1Id = [...room][0];
+      const p1 = io.sockets.sockets.get(p1Id);
+      const p2 = socket;
       
-      const p1Id = [...roomClients][0];
-      const p2Id = socket.id;
+      p2.join(code);
+      p2.roomId = code;
       
-      const gameRoom = new GameRoom(roomId, io, p1Id, p2Id);
-      rooms.set(roomId, gameRoom);
+      const gameRoom = new GameRoom(code, io, p1.id, p2.id, p1.hero, p2.hero);
+      rooms.set(code, gameRoom);
       
-      io.to(p1Id).emit('matchStarted', { roomId, playerNum: 1 });
-      io.to(p2Id).emit('matchStarted', { roomId, playerNum: 2 });
+      p1.emit('matchStarted', { roomId: code, playerNum: 1, enemyHero: p2.hero });
+      p2.emit('matchStarted', { roomId: code, playerNum: 2, enemyHero: p1.hero });
       
       gameRoom.start();
     } else {
-      socket.emit('roomError', 'ROOM NOT FOUND OR FULL');
+      socket.emit('roomError', 'Invalid or Full Forest');
     }
   });
 

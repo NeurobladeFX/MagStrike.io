@@ -18,39 +18,49 @@ class GameRoom {
     
     this.gameState = 'PLAYING';
     
-    // Generate Complex Symmetrical Maze/Platforms
-    this.maze = [
-      // Central Cross Platform
-      { x: 380, y: 250, w: 40, h: 300 }, // vertical spine
-      { x: 250, y: 380, w: 300, h: 40 }, // horizontal bar
-      
-      // Top funnel barriers
-      { x: 100, y: 150, w: 200, h: 30 },
-      { x: 500, y: 150, w: 200, h: 30 },
-      
-      // Bottom funnel barriers
-      { x: 100, y: 620, w: 200, h: 30 },
-      { x: 500, y: 620, w: 200, h: 30 },
-      
-      // Side block platforms
-      { x: 50, y: 300, w: 100, h: 200 },
-      { x: 650, y: 300, w: 100, h: 200 },
-      
-      // Inner pillar platforms
-      { x: 250, y: 250, w: 40, h: 40 },
-      { x: 510, y: 250, w: 40, h: 40 },
-      { x: 250, y: 510, w: 40, h: 40 },
-      { x: 510, y: 510, w: 40, h: 40 },
-    ];
+    // Start with a few random maze blocks
+    this.maze = [];
+    for(let i=0; i<5; i++) {
+      this.spawnRandomMazeBlock();
+    }
+  }
+
+  spawnRandomMazeBlock() {
+    const w = Math.random() > 0.5 ? 200 : 40;
+    const h = w === 200 ? 40 : 200;
+    const x = 50 + Math.random() * (700 - w);
+    const y = 150 + Math.random() * (500 - h);
+    this.maze.push({ x, y, w, h });
   }
 
   start() {
     this.lastTime = Date.now();
     this.loop = setInterval(() => this.update(), 1000 / 60);
+    
+    // Dynamic Maze Loop: Every 1 second, remove a block and spawn a new one
+    this.mazeLoop = setInterval(() => {
+      if (this.gameState === 'PLAYING') {
+        if (this.maze.length > 3) {
+          // Remove 1 to 2 random blocks
+          const removes = Math.floor(Math.random() * 2) + 1;
+          for(let i=0; i<removes; i++) {
+            const idx = Math.floor(Math.random() * this.maze.length);
+            this.maze.splice(idx, 1);
+          }
+        }
+        
+        // Add 1 to 2 new random blocks
+        const adds = Math.floor(Math.random() * 2) + 1;
+        for(let i=0; i<adds; i++) {
+          this.spawnRandomMazeBlock();
+        }
+      }
+    }, 1000);
   }
 
   stop() {
     if (this.loop) clearInterval(this.loop);
+    if (this.mazeLoop) clearInterval(this.mazeLoop);
   }
 
   handleInput(playerId, keys) {
