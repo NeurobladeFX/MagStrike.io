@@ -94,9 +94,9 @@ document.getElementById('avatar-upload').addEventListener('change', (e) => {
 
 // --- Shop Logic ---
 const SHOP_ITEMS = [
-  { id: 'skin_neon', name: 'Neon Glitch (Player Glow)', type: 'skin', price: 200 },
-  { id: 'border_crimson', name: 'Crimson Red UI Border', type: 'border', price: 100 },
-  { id: 'frame_custom', name: 'Custom Avatar Frame', type: 'frame', price: 150 }
+  { id: 'skin_neon', name: 'Silly Top Hat', type: 'skin', price: 200 },
+  { id: 'border_crimson', name: 'Muddy UI Border', type: 'border', price: 100 },
+  { id: 'frame_custom', name: 'Leafy Avatar Frame', type: 'frame', price: 150 }
 ];
 
 function renderShop() {
@@ -124,7 +124,7 @@ function renderShop() {
     
     div.innerHTML = `
       <div class="item-name">${item.name}</div>
-      <div class="item-price">${isOwned ? 'OWNED' : `CREDITS: ${item.price}`}</div>
+      <div class="item-price">${isOwned ? 'OWNED' : `ACORNS: ${item.price}`}</div>
       ${btnHtml}
     `;
     grid.appendChild(div);
@@ -152,13 +152,13 @@ window.equipItem = function(id, type) {
 document.getElementById('play-online-btn').addEventListener('click', () => {
   socket.emit('joinRandom');
   changeScene('WAITING_LOBBY');
-  document.getElementById('waiting-text').innerText = "SEARCHING FOR TARGET...";
+  document.getElementById('waiting-text').innerText = "SEARCHING THE WOODS...";
 });
 
 document.getElementById('play-friend-btn').addEventListener('click', () => {
   socket.emit('createRoom');
   changeScene('WAITING_LOBBY');
-  document.getElementById('waiting-text').innerText = "ESTABLISHING SECURE ROOM...";
+  document.getElementById('waiting-text').innerText = "BUILDING A CLEARING...";
 });
 
 document.getElementById('join-room-btn').addEventListener('click', () => {
@@ -166,7 +166,7 @@ document.getElementById('join-room-btn').addEventListener('click', () => {
   if (code) {
     socket.emit('joinRoom', code);
     changeScene('WAITING_LOBBY');
-    document.getElementById('waiting-text').innerText = "CONNECTING TO ROOM...";
+    document.getElementById('waiting-text').innerText = "RUNNING TO WOODS...";
   }
 });
 
@@ -180,11 +180,11 @@ document.getElementById('return-menu-btn').addEventListener('click', () => {
 });
 
 socket.on('roomCreated', (code) => {
-  document.getElementById('waiting-text').innerText = `ROOM SECURED.\nTRANSMIT CODE: ${code}\nWAITING FOR OPERATOR...`;
+  document.getElementById('waiting-text').innerText = `FOREST READY.\nFRIEND CODE: ${code}\nWAITING FOR ANIMAL...`;
 });
 
 socket.on('roomError', (msg) => {
-  document.getElementById('waiting-text').innerText = `ERROR: ${msg}`;
+  document.getElementById('waiting-text').innerText = `UH OH: ${msg}`;
   setTimeout(() => changeScene('MAIN_MENU'), 2000);
 });
 
@@ -194,8 +194,8 @@ socket.on('matchStarted', (data) => {
   saveData.matches++;
   saveGame();
   
-  document.getElementById('hud-p1').style.borderColor = myPlayerNum === 1 ? '#00f0ff' : '#333';
-  document.getElementById('hud-p2').style.borderColor = myPlayerNum === 2 ? '#ff003c' : '#333';
+  document.getElementById('hud-p1').style.borderColor = myPlayerNum === 1 ? '#e84393' : '#dfe6e9'; // Pig pink
+  document.getElementById('hud-p2').style.borderColor = myPlayerNum === 2 ? '#fdcb6e' : '#dfe6e9'; // Chicken yellow
   
   changeScene('GAMEPLAY');
 });
@@ -204,9 +204,8 @@ socket.on('matchStarted', (data) => {
 let screenShake = 0;
 socket.on('shiftPulse', () => {
   screenShake = 15;
-  // Flash body for dramatic effect
-  document.body.style.backgroundColor = '#9b59b6';
-  setTimeout(() => document.body.style.backgroundColor = 'var(--bg-color)', 50);
+  document.body.style.backgroundColor = '#55efc4';
+  setTimeout(() => document.body.style.backgroundColor = 'var(--bg-color)', 100);
 });
 
 socket.on('gameState', (state) => {
@@ -214,41 +213,40 @@ socket.on('gameState', (state) => {
   
   // Update HUD
   const timer = document.getElementById('shift-timer');
-  timer.innerText = `SHIFT IN: ${state.timer.toFixed(1)}`;
+  timer.innerText = `DIZZY IN: ${state.timer.toFixed(1)}`;
   
   if (state.timer < 1.5) {
-    timer.style.color = '#ff003c';
-    timer.style.borderColor = '#ff003c';
+    timer.style.color = '#d63031';
+    timer.style.borderColor = '#d63031';
     timer.style.transform = `scale(${1 + Math.random()*0.1})`;
   } else {
-    timer.style.color = '#00f0ff';
-    timer.style.borderColor = '#00f0ff';
+    timer.style.color = '#d35400';
+    timer.style.borderColor = '#fdcb6e';
     timer.style.transform = 'scale(1)';
   }
   
-  // Update Player names to show if they are glitched
   const myInverted = state.invertedPlayer === myPlayerNum;
   if (myInverted) {
-    document.getElementById(`hud-p${myPlayerNum}`).style.color = '#9b59b6';
-    document.getElementById(`hud-p${myPlayerNum}`).innerText = 'P' + myPlayerNum + ' [INVERTED]';
+    document.getElementById(`hud-p${myPlayerNum}`).style.color = '#d63031';
+    document.getElementById(`hud-p${myPlayerNum}`).innerText = myPlayerNum === 1 ? 'PIG [DIZZY!]' : 'CHICKEN [DIZZY!]';
   } else {
-    document.getElementById(`hud-p${myPlayerNum}`).style.color = myPlayerNum === 1 ? '#00f0ff' : '#ff003c';
-    document.getElementById(`hud-p${myPlayerNum}`).innerText = 'P' + myPlayerNum + ' [NORMAL]';
+    document.getElementById(`hud-p${myPlayerNum}`).style.color = myPlayerNum === 1 ? '#e84393' : '#e17055';
+    document.getElementById(`hud-p${myPlayerNum}`).innerText = myPlayerNum === 1 ? 'PIG [READY]' : 'CHICKEN [READY]';
   }
 });
 
 socket.on('gameOver', (data) => {
   const isWinner = data.winner === myPlayerNum;
   if (isWinner) {
-    document.getElementById('winner-text').innerText = "VICTORY ACHIEVED";
-    document.getElementById('winner-text').style.color = "#2ecc71";
-    document.getElementById('reward-text').innerText = "+50 CREDITS";
+    document.getElementById('winner-text').innerText = "YOU WON THE RACE!";
+    document.getElementById('winner-text').style.color = "#00b894";
+    document.getElementById('reward-text').innerText = "+50 ACORNS";
     saveData.coins += 50;
     saveData.wins++;
     saveGame();
   } else {
-    document.getElementById('winner-text').innerText = "SYSTEM COMPROMISED";
-    document.getElementById('winner-text').style.color = "#ff003c";
+    document.getElementById('winner-text').innerText = "YOU GOT LOST!";
+    document.getElementById('winner-text').style.color = "#d63031";
     document.getElementById('reward-text').innerText = "";
   }
   changeScene('GAME_OVER');
@@ -256,64 +254,71 @@ socket.on('gameOver', (data) => {
 
 // --- Game Engine Rendering ---
 
-function drawPlayer(p, color, isInverted, hasSkin) {
+function drawPlayer(p, playerNum, isInverted, hasSkin) {
   ctx.save();
   ctx.translate(p.x, p.y);
   
+  if (playerNum === 1) {
+    // Draw Pig
+    ctx.fillStyle = '#fab1a0';
+    ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#e17055';
+    ctx.beginPath(); ctx.arc(0, -10, 10, 0, Math.PI*2); ctx.fill(); // snout
+    ctx.fillStyle = '#fab1a0';
+    ctx.beginPath(); ctx.arc(-15, -15, 8, 0, Math.PI*2); ctx.fill(); // ears
+    ctx.beginPath(); ctx.arc(15, -15, 8, 0, Math.PI*2); ctx.fill();
+  } else {
+    // Draw Chicken
+    ctx.fillStyle = '#ffeaa7';
+    ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#d35400';
+    ctx.beginPath(); ctx.moveTo(-5, -5); ctx.lineTo(5, -5); ctx.lineTo(0, -18); ctx.fill(); // beak
+    ctx.fillStyle = '#d63031';
+    ctx.beginPath(); ctx.arc(0, 15, 6, 0, Math.PI*2); ctx.fill(); // wattle
+  }
+  
   if (hasSkin) {
-    ctx.shadowColor = isInverted ? '#9b59b6' : color;
-    ctx.shadowBlur = 20;
+    // Draw Silly Top Hat
+    ctx.fillStyle = '#2d3436';
+    ctx.fillRect(-15, -p.radius-5, 30, 5);
+    ctx.fillRect(-10, -p.radius-25, 20, 20);
   }
   
   if (isInverted) {
-    // Glitchy purple look
-    ctx.fillStyle = '#9b59b6';
-    // Jitter randomly
-    ctx.translate((Math.random()-0.5)*4, (Math.random()-0.5)*4);
-  } else {
-    ctx.fillStyle = color;
+    // Dizzy Effect (Spinning Stars)
+    const time = Date.now() / 200;
+    ctx.fillStyle = '#ffeaa7';
+    for(let i=0; i<3; i++) {
+      const angle = time + (i * Math.PI*2/3);
+      ctx.beginPath();
+      ctx.arc(Math.cos(angle)*30, Math.sin(angle)*30, 5, 0, Math.PI*2);
+      ctx.fill();
+    }
   }
-  
-  ctx.beginPath();
-  ctx.arc(0, 0, p.radius, 0, Math.PI*2);
-  ctx.fill();
-  
-  // Eye indicating forward direction
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(0, isInverted ? 10 : -10, 5, 0, Math.PI*2);
-  ctx.fill();
   
   ctx.restore();
 }
 
 function drawArena() {
   // Safe Zones
-  ctx.fillStyle = 'rgba(0, 240, 255, 0.1)';
-  ctx.fillRect(0, 700, 800, 100); // Bottom zone (Blue)
+  ctx.fillStyle = '#saddlebrown'; // Mud puddle (Blue/Pig starts here)
+  ctx.fillRect(0, 700, 800, 100);
   
-  ctx.fillStyle = 'rgba(255, 0, 60, 0.1)';
-  ctx.fillRect(0, 0, 800, 100); // Top zone (Red)
+  ctx.fillStyle = '#fdcb6e'; // Straw nest (Red/Chicken starts here)
+  ctx.fillRect(0, 0, 800, 100);
   
-  // Grid Lines
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-  ctx.lineWidth = 1;
-  for(let i=0; i<800; i+=40) {
-    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 800); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(800, i); ctx.stroke();
-  }
-  
-  // Maze
+  // Wooden Log Maze
   if (serverState && serverState.maze) {
-    ctx.fillStyle = '#111';
-    ctx.strokeStyle = '#ff003c';
-    ctx.lineWidth = 2;
+    ctx.fillStyle = '#8e44ad'; // brown logs
+    ctx.strokeStyle = '#2d3436';
+    ctx.lineWidth = 4;
     serverState.maze.forEach(b => {
-      ctx.shadowColor = '#ff003c';
-      ctx.shadowBlur = 10;
-      ctx.fillRect(b.x, b.y, b.w, b.h);
-      ctx.strokeRect(b.x, b.y, b.w, b.h);
-      ctx.shadowBlur = 0;
+      // Draw rounded rectangle for logs/bushes
+      ctx.fillStyle = '#d35400'; // Log brown
+      ctx.beginPath();
+      ctx.roundRect(b.x, b.y, b.w, b.h, 15);
+      ctx.fill();
+      ctx.stroke();
     });
   }
 }
@@ -323,9 +328,9 @@ function loop() {
   
   if (gameState === 'GAMEPLAY' && serverState) {
     if (saveData.equippedBorder === 'border_crimson') {
-      canvas.style.borderColor = '#ff003c';
+      canvas.style.borderColor = '#8b4513'; // Muddy border
     } else {
-      canvas.style.borderColor = '#222';
+      canvas.style.borderColor = '#saddlebrown';
     }
 
     ctx.save();
@@ -341,8 +346,8 @@ function loop() {
     const p2Inverted = serverState.invertedPlayer === 2;
     const hasSkin = saveData.equippedSkin === 'skin_neon';
     
-    drawPlayer(serverState.p1, '#00f0ff', p1Inverted, myPlayerNum===1 ? hasSkin : false);
-    drawPlayer(serverState.p2, '#ff003c', p2Inverted, myPlayerNum===2 ? hasSkin : false);
+    drawPlayer(serverState.p1, 1, p1Inverted, myPlayerNum===1 ? hasSkin : false);
+    drawPlayer(serverState.p2, 2, p2Inverted, myPlayerNum===2 ? hasSkin : false);
     
     ctx.restore();
   }
