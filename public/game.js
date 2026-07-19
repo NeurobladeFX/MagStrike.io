@@ -1,4 +1,4 @@
-const RENDER_SERVER_URL = window.location.origin; // Set this if hosting frontend separate from backend
+const RENDER_SERVER_URL = "https://magstrike-io.onrender.com";
 const socket = io(RENDER_SERVER_URL);
 
 // --- State ---
@@ -73,7 +73,7 @@ function handleTyping(e) {
     // Word complete
     if (untypedPortion.length === 0) {
       const damage = Math.floor(currentWord.length * (1 + (combo * 0.1)));
-      triggerAttack(damage);
+      triggerAttack(damage, currentWord.length);
       combo = Math.min(combo + 1, 10);
       getNewWord();
     }
@@ -110,12 +110,12 @@ function calculateWPM() {
   return Math.max(0, wpm);
 }
 
-function triggerAttack(damage) {
-  // Local visual trigger
-  graphics.triggerLocalAttack();
+function triggerAttack(damage, wordLength) {
+  // Fire the high-fidelity combat animation
+  const currentWpm = calculateWPM();
+  if (graphics) graphics.triggerLocalAttack(currentWpm, wordLength);
   
   // Send to server
-  const currentWpm = calculateWPM();
   socket.emit('attack', { damage, wpm: currentWpm });
   
   // Update HUD WPM
@@ -239,8 +239,8 @@ const app = {
     getNewWord();
     document.getElementById('hidden-typing-input').focus();
     
-    // Start graphics loop
-    graphics.start();
+    // Start the high-performance combat renderer
+    if (graphics) graphics.start();
   },
 
   matchTick() {
@@ -262,7 +262,7 @@ const app = {
   endGame(winnerNum) {
     appState.match.inMatch = false;
     isTypingActive = false;
-    graphics.stop();
+    if (graphics) graphics.stop();
     
     const isWinner = (winnerNum === 1 && appState.match.isPlayer1) || (winnerNum === 2 && !appState.match.isPlayer1);
     
@@ -314,8 +314,11 @@ socket.on('gameState', (state) => {
   
   // Check enemy attacks for animation
   if (enemyState.isAttacking) {
-    graphics.triggerEnemyAttack();
+    if (graphics) graphics.triggerEnemyAttack();
   }
+  
+  // Update health bars in combat scene
+  if (graphics) graphics.updateHealthBars(myState.health, enemyState.health);
   
   // Stats
   document.getElementById('game-my-dmg').innerText = myState.dmg;
@@ -332,156 +335,16 @@ socket.on('roomError', (msg) => {
   app.cancelMatch();
 });
 
-// --- Canvas Graphics Engine ---
+// --- Canvas Graphics Engine (DualCombatScene from SwordCombatEngine.js) ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const graphics = {
-  running: false,
-  lastTime: 0,
-  
-  p1: { x: 300, y: 350, state: 'IDLE', animTimer: 0 },
-  p2: { x: 980, y: 350, state: 'IDLE', animTimer: 0 },
-  
-  start() {
-    this.running = true;
-    this.lastTime = Date.now();
-    this.p1.state = 'IDLE';
-    this.p2.state = 'IDLE';
-    requestAnimationFrame(this.loop.bind(this));
-  },
-  
-  stop() {
-    this.running = false;
-  },
-  
-  triggerLocalAttack() {
-    const me = appState.match.isPlayer1 ? this.p1 : this.p2;
-    me.state = 'ATTACK';
-    me.animTimer = 0.3; // seconds
-  },
-  
-  triggerEnemyAttack() {
-    const enemy = appState.match.isPlayer1 ? this.p2 : this.p1;
-    enemy.state = 'ATTACK';
-    enemy.animTimer = 0.3; // seconds
-  },
-  
-  loop() {
-    if (!this.running) return;
-    const now = Date.now();
-    const dt = (now - this.lastTime) / 1000;
-    this.lastTime = now;
-    
-    // Clear
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Update logic
-    this.updateStickman(this.p1, dt);
-    this.updateStickman(this.p2, dt);
-    
-    // Draw
-    this.drawStickman(this.p1, 1);
-    this.drawStickman(this.p2, -1); // flip p2
-    
-    requestAnimationFrame(this.loop.bind(this));
-  },
-  
-  updateStickman(p, dt) {
-    if (p.state === 'ATTACK') {
-      p.animTimer -= dt;
-      if (p.animTimer <= 0) {
-        p.state = 'IDLE';
-      }
-    }
-  },
-  
-  drawStickman(p, direction) {
-    ctx.save();
-    ctx.translate(p.x, p.y);
-    ctx.scale(direction, 1); // Flip if p2
-    
-    ctx.strokeStyle = direction === 1 ? '#3498db' : '#e74c3c';
-    if (p.state === 'ATTACK') ctx.strokeStyle = '#f1c40f'; // glow on attack
-    
-    ctx.lineWidth = 8;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    
-    // Stickman Body
-    ctx.beginPath();
-    
-    if (p.state === 'IDLE') {
-      // Bobbing
-      const bob = Math.sin(Date.now() / 200) * 5;
-      
-      // Head
-      ctx.arc(0, -100 + bob, 20, 0, Math.PI * 2);
-      // Torso
-      ctx.moveTo(0, -80 + bob);
-      ctx.lineTo(0, 0 + bob);
-      // Arms
-      ctx.moveTo(0, -60 + bob);
-      ctx.lineTo(40, -40 + bob);
-      ctx.moveTo(0, -60 + bob);
-      ctx.lineTo(-30, -30 + bob);
-      // Legs
-      ctx.moveTo(0, 0 + bob);
-      ctx.lineTo(20, 50);
-      ctx.moveTo(0, 0 + bob);
-      ctx.lineTo(-20, 50);
-      
-      ctx.stroke();
-      
-      // Idle Weapon (Sword)
-      ctx.beginPath();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 4;
-      ctx.moveTo(40, -40 + bob);
-      ctx.lineTo(60, -90 + bob);
-      ctx.stroke();
-      
-    } else if (p.state === 'ATTACK') {
-      // Lunge forward
-      ctx.translate(100, 0); // shift forward
-      
-      // Head
-      ctx.arc(20, -90, 20, 0, Math.PI * 2);
-      // Torso
-      ctx.moveTo(10, -70);
-      ctx.lineTo(-10, 10);
-      // Arms (Striking)
-      ctx.moveTo(0, -50);
-      ctx.lineTo(60, -50); // Arm straight out
-      ctx.moveTo(0, -50);
-      ctx.lineTo(-40, -20);
-      // Legs
-      ctx.moveTo(-10, 10);
-      ctx.lineTo(-40, 50);
-      ctx.moveTo(-10, 10);
-      ctx.lineTo(30, 50);
-      
-      ctx.stroke();
-      
-      // Attack Weapon (Sword)
-      ctx.beginPath();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 6;
-      ctx.moveTo(60, -50);
-      ctx.lineTo(150, -50); // Big stab
-      
-      // Slash effect
-      ctx.moveTo(100, -80);
-      ctx.quadraticCurveTo(180, -50, 100, -20);
-      
-      ctx.stroke();
-    }
-    
-    ctx.restore();
-  }
-};
-
+// DualCombatScene instance — initialized once the page loads (see Boot section)
+let graphics = null;
 // --- Boot ---
 window.onload = () => {
+  // Initialize the high-performance combat renderer
+  graphics = new DualCombatScene(canvas);
   app.init();
 };
+
