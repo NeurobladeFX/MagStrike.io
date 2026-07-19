@@ -49,120 +49,108 @@ function vLerp(a, b, t) { return { x: L(a.x,b.x,t), y: L(a.y,b.y,t) }; }
 //   swordTip   (direction the blade points from pivot)
 
 const POSES = {
-
-  // 1 IdleStance ── relaxed guard, weight balanced
   IdleStance: {
-    head:       { x:  0, y:-130 }, neck:      { x:  0, y:-102 },
-    shoulder:   { x:  0, y: -84 },
-    elbowR:     { x: 36, y: -60 }, wristR:    { x: 56, y: -33 },
-    elbowL:     { x:-28, y: -60 }, wristL:    { x:-44, y: -30 },
-    hipR:       { x: 15, y: -28 }, kneeR:     { x: 20, y: -62 }, footR: { x: 26, y:  0 },
-    hipL:       { x:-15, y: -28 }, kneeL:     { x:-18, y: -62 }, footL: { x:-22, y:  0 },
-    swordPivot: { x: 56, y: -33 }, swordTip:  { x:110, y: -58 },
+    root: {x: 0, y: 0},
+    head:       {x: 0, y: -240}, neck: {x: 0, y: -210}, shoulder: {x: 0, y: -195},
+    elbowR:     {x: 35, y: -170}, wristR: {x: 55, y: -145},
+    elbowL:     {x: -30, y: -170}, wristL: {x: -45, y: -140},
+    hipR:       {x: 15, y: -110}, kneeR: {x: 20, y: -55}, footR: {x: 25, y: 0},
+    hipL:       {x: -15, y: -110}, kneeL: {x: -20, y: -55}, footL: {x: -25, y: 0},
+    swordPivot: {x: 55, y: -145}, swordTip: {x: 110, y: -170},
   },
-
-  // 2 HorizontalLunge ── fast forward thrust, front foot planted
   HorizontalLunge: {
-    head:       { x: 58, y:-108 }, neck:      { x: 46, y: -84 },
-    shoulder:   { x: 28, y: -70 },
-    elbowR:     { x: 96, y: -72 }, wristR:    { x:158, y: -74 },
-    elbowL:     { x:  4, y: -48 }, wristL:    { x:-16, y: -22 },
-    hipR:       { x: 36, y: -22 }, kneeR:     { x: 80, y: -50 }, footR: { x:120, y:  0 },
-    hipL:       { x:-20, y: -22 }, kneeL:     { x:-48, y: -46 }, footL: { x:-76, y:  0 },
-    swordPivot: { x:158, y: -74 }, swordTip:  { x:255, y: -76 },
+    root: {x: 120, y: 0}, 
+    head:       {x: 60, y: -218}, neck: {x: 48, y: -194}, shoulder: {x: 30, y: -180},
+    elbowR:     {x: 100, y: -182}, wristR: {x: 162, y: -184},
+    elbowL:     {x: 2, y: -158}, wristL: {x: -18, y: -130},
+    hipR:       {x: 38, y: -110}, kneeR: {x: 82, y: -62}, footR: {x: 125, y: 0},
+    hipL:       {x: -22, y: -110}, kneeL: {x: -52, y: -66}, footL: {x: -82, y: 0},
+    swordPivot: {x: 162, y: -184}, swordTip: {x: 280, y: -184},
   },
-
-  // 3 OverheadCleave ── both hands raised, blade overhead
   OverheadCleave: {
-    head:       { x:  8, y:-132 }, neck:      { x:  5, y:-104 },
-    shoulder:   { x:  3, y: -88 },
-    elbowR:     { x: 40, y:-155 }, wristR:    { x: 56, y:-198 },
-    elbowL:     { x: 16, y:-138 }, wristL:    { x: 32, y:-182 },
-    hipR:       { x: 20, y: -24 }, kneeR:     { x: 24, y: -58 }, footR: { x: 30, y:  0 },
-    hipL:       { x:-16, y: -24 }, kneeL:     { x:-20, y: -58 }, footL: { x:-24, y:  0 },
-    swordPivot: { x: 56, y:-198 }, swordTip:  { x: 58, y: -90 },
+    root: {x: 40, y: 0}, 
+    head:       {x: 12, y: -242}, neck: {x: 8, y: -214}, shoulder: {x: 5, y: -198},
+    elbowR:     {x: 42, y: -265}, wristR: {x: 60, y: -305},
+    elbowL:     {x: 18, y: -245}, wristL: {x: 35, y: -290},
+    hipR:       {x: 22, y: -110}, kneeR: {x: 28, y: -55}, footR: {x: 35, y: 0},
+    hipL:       {x: -18, y: -110}, kneeL: {x: -22, y: -55}, footL: {x: -26, y: 0},
+    swordPivot: {x: 60, y: -305}, swordTip: {x: 62, y: -120},
   },
-
-  // 4 SpinSlash ── arms wide at peak of rotation
   SpinSlash: {
-    head:       { x: -8, y:-128 }, neck:      { x: -4, y:-100 },
-    shoulder:   { x: -2, y: -83 },
-    elbowR:     { x: 88, y: -83 }, wristR:    { x:142, y: -82 },
-    elbowL:     { x:-76, y: -83 }, wristL:    { x:-124,y: -80 },
-    hipR:       { x: 18, y: -24 }, kneeR:     { x: 46, y: -58 }, footR: { x: 72, y:  0 },
-    hipL:       { x:-18, y: -24 }, kneeL:     { x:-10, y: -65 }, footL: { x:  0, y:  0 },
-    swordPivot: { x:142, y: -82 }, swordTip:  { x:222, y: -82 },
+    root: {x: 80, y: 0},
+    head:       {x: -10, y: -238}, neck: {x: -6, y: -209}, shoulder: {x: -4, y: -193},
+    elbowR:     {x: 90, y: -193}, wristR: {x: 145, y: -192},
+    elbowL:     {x: -80, y: -193}, wristL: {x: -130, y: -190},
+    hipR:       {x: 20, y: -110}, kneeR: {x: 50, y: -50}, footR: {x: 75, y: 0},
+    hipL:       {x: -20, y: -110}, kneeL: {x: -10, y: -45}, footL: {x: 0, y: 0},
+    swordPivot: {x: 145, y: -192}, swordTip: {x: 245, y: -192},
   },
-
-  // 5 RisingCrescent ── low start, blade swings up diagonally
   RisingCrescent: {
-    head:       { x: 16, y:-124 }, neck:      { x: 12, y: -97 },
-    shoulder:   { x:  8, y: -82 },
-    elbowR:     { x: 18, y: -22 }, wristR:    { x: 28, y:  -5 },
-    elbowL:     { x:-20, y: -60 }, wristL:    { x:-36, y: -30 },
-    hipR:       { x: 22, y: -22 }, kneeR:     { x: 38, y: -52 }, footR: { x: 48, y:  0 },
-    hipL:       { x:-16, y: -22 }, kneeL:     { x:-28, y: -50 }, footL: { x:-38, y:  0 },
-    swordPivot: { x: 28, y:  -5 }, swordTip:  { x:108, y:-114 },
+    root: {x: 30, y: 0},
+    head:       {x: 18, y: -234}, neck: {x: 14, y: -207}, shoulder: {x: 10, y: -192},
+    elbowR:     {x: 20, y: -130}, wristR: {x: 30, y: -82},
+    elbowL:     {x: -22, y: -170}, wristL: {x: -38, y: -140},
+    hipR:       {x: 25, y: -110}, kneeR: {x: 40, y: -58}, footR: {x: 50, y: 0},
+    hipL:       {x: -18, y: -110}, kneeL: {x: -30, y: -60}, footL: {x: -40, y: 0},
+    swordPivot: {x: 30, y: -82}, swordTip: {x: 140, y: -220},
   },
-
-  // 6 LowBlock ── crouching guard, blade angles down-forward
   LowBlock: {
-    head:       { x:  4, y: -88 }, neck:      { x:  3, y: -66 },
-    shoulder:   { x:  2, y: -54 },
-    elbowR:     { x: 38, y: -36 }, wristR:    { x: 60, y: -20 },
-    elbowL:     { x:-26, y: -38 }, wristL:    { x:-48, y: -22 },
-    hipR:       { x: 28, y: -16 }, kneeR:     { x: 52, y: -42 }, footR: { x: 66, y:  0 },
-    hipL:       { x:-24, y: -16 }, kneeL:     { x:-44, y: -42 }, footL: { x:-58, y:  0 },
-    swordPivot: { x: 60, y: -20 }, swordTip:  { x:128, y:   8 },
+    root: {x: 0, y: 0},
+    head:       {x: 5, y: -180}, neck: {x: 3, y: -158}, shoulder: {x: 2, y: -145},
+    elbowR:     {x: 40, y: -128}, wristR: {x: 62, y: -112},
+    elbowL:     {x: -28, y: -130}, wristL: {x: -50, y: -114},
+    hipR:       {x: 30, y: -80}, kneeR: {x: 55, y: -42}, footR: {x: 70, y: 0},
+    hipL:       {x: -26, y: -80}, kneeL: {x: -48, y: -42}, footL: {x: -62, y: 0},
+    swordPivot: {x: 62, y: -112}, swordTip: {x: 140, y: -60},
   },
-
-  // 7 HighParry ── arms raised, blade blocks high
   HighParry: {
-    head:       { x: -4, y:-128 }, neck:      { x: -2, y: -99 },
-    shoulder:   { x: -1, y: -83 },
-    elbowR:     { x: 48, y:-120 }, wristR:    { x: 70, y:-152 },
-    elbowL:     { x:-18, y:-102 }, wristL:    { x:-36, y:-130 },
-    hipR:       { x: 18, y: -24 }, kneeR:     { x: 28, y: -58 }, footR: { x: 36, y:  0 },
-    hipL:       { x:-16, y: -24 }, kneeL:     { x:-23, y: -58 }, footL: { x:-30, y:  0 },
-    swordPivot: { x: 70, y:-152 }, swordTip:  { x: 98, y:-222 },
+    root: {x: -10, y: 0},
+    head:       {x: -5, y: -238}, neck: {x: -3, y: -209}, shoulder: {x: -2, y: -193},
+    elbowR:     {x: 50, y: -230}, wristR: {x: 72, y: -262},
+    elbowL:     {x: -20, y: -210}, wristL: {x: -38, y: -240},
+    hipR:       {x: 20, y: -110}, kneeR: {x: 30, y: -55}, footR: {x: 38, y: 0},
+    hipL:       {x: -18, y: -110}, kneeL: {x: -25, y: -55}, footL: {x: -32, y: 0},
+    swordPivot: {x: 72, y: -262}, swordTip: {x: 110, y: -320},
   },
-
-  // 8 DashRetreat ── body leans back, weight on back foot
   DashRetreat: {
-    head:       { x:-44, y:-122 }, neck:      { x:-34, y: -95 },
-    shoulder:   { x:-24, y: -80 },
-    elbowR:     { x: 14, y: -60 }, wristR:    { x: 38, y: -38 },
-    elbowL:     { x:-58, y: -58 }, wristL:    { x:-80, y: -34 },
-    hipR:       { x: -8, y: -20 }, kneeR:     { x:-12, y: -54 }, footR: { x:-16, y:  0 },
-    hipL:       { x:  8, y: -20 }, kneeL:     { x: 52, y: -48 }, footL: { x: 86, y:  0 },
-    swordPivot: { x: 38, y: -38 }, swordTip:  { x: 88, y: -62 },
+    root: {x: -60, y: 0},
+    head:       {x: -45, y: -232}, neck: {x: -35, y: -205}, shoulder: {x: -25, y: -190},
+    elbowR:     {x: 15, y: -170}, wristR: {x: 40, y: -148},
+    elbowL:     {x: -60, y: -168}, wristL: {x: -82, y: -145},
+    hipR:       {x: -10, y: -110}, kneeR: {x: -15, y: -55}, footR: {x: -18, y: 0},
+    hipL:       {x: 10, y: -110}, kneeL: {x: 55, y: -60}, footL: {x: 90, y: 0},
+    swordPivot: {x: 40, y: -148}, swordTip: {x: 90, y: -172},
   },
-
-  // 9 ForwardRoll ── tucked mid-roll, both feet lifted slightly
-  // (brief air moment – feet near 0 to keep it close to ground)
   ForwardRoll: {
-    head:       { x: 48, y: -48 }, neck:      { x: 34, y: -34 },
-    shoulder:   { x: 20, y: -22 },
-    elbowR:     { x: 14, y:  -4 }, wristR:    { x: 20, y:  12 },
-    elbowL:     { x: -4, y:  -2 }, wristL:    { x: -6, y:  14 },
-    hipR:       { x:  8, y:  -8 }, kneeR:     { x: -4, y: -36 }, footR: { x:-16, y: -14 },
-    hipL:       { x: -6, y:  -6 }, kneeL:     { x: 22, y: -34 }, footL: { x: 40, y: -12 },
-    swordPivot: { x: 20, y:  12 }, swordTip:  { x: 78, y:   8 },
+    root: {x: 150, y: -30}, 
+    head:       {x: 50, y: -80}, neck: {x: 35, y: -65}, shoulder: {x: 20, y: -52},
+    elbowR:     {x: 15, y: -20}, wristR: {x: 22, y: 5},
+    elbowL:     {x: -5, y: -25}, wristL: {x: -8, y: -2},
+    hipR:       {x: 10, y: -12}, kneeR: {x: -5, y: 25}, footR: {x: -18, y: 50},
+    hipL:       {x: -8, y: -18}, kneeL: {x: 25, y: 18}, footL: {x: 45, y: 42},
+    swordPivot: {x: 22, y: 5}, swordTip: {x: 80, y: 0},
   },
-
-  // 10 DecapitationSwing ── full horizontal mega reach, max extension
   DecapitationSwing: {
-    head:       { x: 24, y:-118 }, neck:      { x: 18, y: -93 },
-    shoulder:   { x: 12, y: -78 },
-    elbowR:     { x:118, y: -88 }, wristR:    { x:192, y: -90 },
-    elbowL:     { x:102, y: -85 }, wristL:    { x:172, y: -86 },
-    hipR:       { x: 28, y: -20 }, kneeR:     { x: 58, y: -52 }, footR: { x: 88, y:  0 },
-    hipL:       { x:-26, y: -20 }, kneeL:     { x:-48, y: -50 }, footL: { x:-76, y:  0 },
-    swordPivot: { x:192, y: -90 }, swordTip:  { x:316, y: -92 },
+    root: {x: 90, y: 0},
+    head:       {x: 25, y: -228}, neck: {x: 20, y: -203}, shoulder: {x: 14, y: -188},
+    elbowR:     {x: 120, y: -200}, wristR: {x: 195, y: -202},
+    elbowL:     {x: 105, y: -196}, wristL: {x: 175, y: -198},
+    hipR:       {x: 30, y: -110}, kneeR: {x: 60, y: -60}, footR: {x: 90, y: 0},
+    hipL:       {x: -28, y: -110}, kneeL: {x: -50, y: -62}, footL: {x: -80, y: 0},
+    swordPivot: {x: 195, y: -202}, swordTip: {x: 320, y: -204},
   },
+  Collapse: {
+    root: {x: -40, y: 0},
+    head:       {x: -120, y: -30}, neck: {x: -100, y: -20}, shoulder: {x: -80, y: -15},
+    elbowR:     {x: -40, y: -5}, wristR: {x: -10, y: -2},
+    elbowL:     {x: -60, y: -10}, wristL: {x: -30, y: -5},
+    hipR:       {x: 20, y: -10}, kneeR: {x: 60, y: -15}, footR: {x: 100, y: 0},
+    hipL:       {x: 10, y: -5}, kneeL: {x: 40, y: -10}, footL: {x: 80, y: 0},
+    swordPivot: {x: -10, y: -2}, swordTip: {x: 60, y: 5},
+  }
 };
 
-const ATTACK_NAMES = Object.keys(POSES).filter(n => n !== 'IdleStance');
+const ATTACK_NAMES = Object.keys(POSES).filter(n => n !== 'IdleStance' && n !== 'Collapse');
 
 // High-velocity = triggers screen shake + more VFX
 const IS_HIGH_VEL = {
@@ -346,6 +334,7 @@ class Stickman {
     this._shakePow   = 0;
     this._shake      = {x:0, y:0};
     this._flashTimer = 0;
+    this.health  = 100;
     this._attacking  = false;
   }
 
@@ -372,6 +361,8 @@ class Stickman {
    * @returns {string} animation name
    */
   attack() {
+    if (this.health <= 0) return 'None';
+
     const idx  = Math.floor(Math.random() * ATTACK_NAMES.length);
     const name = ATTACK_NAMES[idx];
     const hv   = IS_HIGH_VEL[name] || false;
@@ -386,6 +377,7 @@ class Stickman {
     const recoverMs = peakMs + 190;
 
     setTimeout(() => {
+      if (this.health <= 0) return;
       const tp = this._worldJ('swordTip');
       const pp = this._worldJ('swordPivot');
       this._spawnVFX(tp, pp, vel);
@@ -393,6 +385,7 @@ class Stickman {
     }, peakMs);
 
     setTimeout(() => {
+      if (this.health <= 0) return;
       this._attacking = false;
       this._go('IdleStance', 4);
     }, recoverMs);
@@ -401,17 +394,25 @@ class Stickman {
   }
 
   recoil() {
+    if (this.health <= 0) return;
     this._flashTimer = 0.2;
     this._shakePow   = 0.3;
     this._go('DashRetreat', 16);
-    setTimeout(() => this._go('IdleStance', 4), 220);
+    setTimeout(() => { if (this.health > 0) this._go('IdleStance', 4); }, 220);
   }
 
   takeHit() {
+    if (this.health <= 0) return;
     this._flashTimer = 0.24;
     this._shakePow   = 0.5;
     this._go('DashRetreat', 12);
-    setTimeout(() => this._go('IdleStance', 4), 340);
+    setTimeout(() => { if (this.health > 0) this._go('IdleStance', 4); }, 340);
+  }
+
+  die() {
+    this.health = 0;
+    this._attacking = false;
+    this._go('Collapse', 8);
   }
 
   // ── Update ────────────────────────────────────────────────────────────────
@@ -453,9 +454,10 @@ class Stickman {
   // ── Draw ──────────────────────────────────────────────────────────────────
 
   draw(ctx) {
-    // Root is exactly at (rootX, groundY)
-    const rx = this.rootX + this._shake.x;
-    const ry = this.groundY + this._shake.y;
+    const r = this.J.root;
+    // Root is offset by r.x, and sits on groundY + r.y
+    const rx = this.rootX + r.x * this.facing + this._shake.x;
+    const ry = this.groundY + r.y + this._shake.y;
 
     ctx.save();
     ctx.translate(rx, ry);
@@ -475,6 +477,9 @@ class Stickman {
     // Weapon (world-space coords converted to local)
     ctx.restore();   // restore before drawing weapon in world space
 
+    // Don't draw weapon if dead/collapsed
+    if (this.health <= 0) return;
+
     const pp = this._worldJ('swordPivot');
     const tp = this._worldJ('swordTip');
     this.weapon.draw(
@@ -487,9 +492,10 @@ class Stickman {
 
   _worldJ(name) {
     const j = this.J[name];
+    const r = this.J.root;
     return {
-      x: this.rootX + j.x * this.facing + this._shake.x,
-      y: this.groundY + j.y + this._shake.y,
+      x: this.rootX + (r.x + j.x) * this.facing + this._shake.x,
+      y: this.groundY + r.y + j.y + this._shake.y,
     };
   }
 
@@ -720,10 +726,10 @@ class DualCombatScene {
 
     const katana = new RealisticWeapon('assets/katana.png', 260, 50);
 
-    // Player 1 — left, dark navy
-    this.p1 = new Stickman(W * 0.26, this.GROUND_Y,  1, '#0d0d1a', '#3daeff', katana);
-    // Player 2 — right, dark crimson
-    this.p2 = new Stickman(W * 0.74, this.GROUND_Y, -1, '#1a0000', '#c0392b', katana);
+    // Player 1 — left, vibrant blue
+    this.p1 = new Stickman(W * 0.26, this.GROUND_Y,  1, '#1e90ff', '#88ccff', katana);
+    // Player 2 — right, vibrant red
+    this.p2 = new Stickman(W * 0.74, this.GROUND_Y, -1, '#e74c3c', '#ff8888', katana);
 
     // Letter belt
     this._belt = new LetterBelt(
@@ -780,6 +786,12 @@ class DualCombatScene {
     const e = document.getElementById('enemy-health');
     if (m) m.style.width = `${Math.max(0, myPct)}%`;
     if (e) e.style.width = `${Math.max(0, enemyPct)}%`;
+
+    if (myPct <= 0 && this.p1.health > 0) this.p1.die();
+    if (enemyPct <= 0 && this.p2.health > 0) this.p2.die();
+
+    this.p1.health = myPct;
+    this.p2.health = enemyPct;
   }
 
   // ── Game loop ──────────────────────────────────────────────────────────────
