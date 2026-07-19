@@ -1,909 +1,710 @@
 /**
- * SwordCombatEngine.js  v2.0
+ * SwordCombatEngine.js  v3.0 — MagStrike
  * ─────────────────────────────────────────────────────────────────────────────
- * Architecture:
- *   RealisticWeapon  – loads & draws the katana PNG with ctx.drawImage, handles
- *                      rotation + pivot anchoring + motion-blur trail
- *   Stickman         – solid filled-silhouette character with 10 keyframe poses
- *   DualCombatScene  – master game loop, letter-burst input, VFX orchestration
- *   CombatEngine     – thin single-player wrapper (optional)
  *
- * Letter-Burst Mechanic:
- *   A single random CAPITAL letter appears centre-screen. One keypress resolves
- *   it instantly (no fade). Correct → random attack animation. Wrong → recoil.
+ * KEY FIXES v3:
+ *  • Strict GROUND_Y anchoring — feet are always ON the floor line.
+ *  • Poses defined as offsets FROM ground upward (foot = 0, head = -H).
+ *  • Letter Conveyor Belt driven by DOM <div id="letter-belt"> with CSS tiles.
+ *  • Solid filled stickmen — capsule bodies, filled circles for head/joints.
+ *  • RealisticWeapon: ctx.drawImage katana PNG with per-frame rotation/pivot.
+ *  • 10 named combat animations with grounded foot positions.
+ *  • VFX: motion-blur sword trail, spark particles, slash arcs, screen-shake.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 'use strict';
 
-// ─── MATH HELPERS ────────────────────────────────────────────────────────────
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-const _lerp  = (a, b, t)  => a + (b - a) * t;
-const _clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
-const _rand  = (lo, hi)   => lo + Math.random() * (hi - lo);
-const _rInt  = (lo, hi)   => Math.floor(_rand(lo, hi + 1));
-const _easeOut  = t => 1 - (1 - t) * (1 - t);
-const _easeInOut = t => t < 0.5 ? 2*t*t : 1 - (-2*t+2)**2/2;
+const BELT_SIZE   = 6;          // number of tiles in the conveyor belt
+const LETTER_POOL = 'ASDFJKLQWERTYUIOPZXCVBNM'; // keyboard-layout biased
 
-function _vecLerp(a, b, t) {
-  return { x: _lerp(a.x, b.x, t), y: _lerp(a.y, b.y, t) };
-}
+// ─── MATH UTILS ───────────────────────────────────────────────────────────────
 
-// ─── JOINT / POSE SYSTEM ─────────────────────────────────────────────────────
-// All joints are offsets relative to the "root" (hip centre, world-Y-up).
-// Positive Y = DOWN on screen.
+const L = (a, b, t)  => a + (b - a) * t;                           // lerp
+const C = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;            // clamp
+const R = (lo, hi)   => lo + Math.random() * (hi - lo);            // rand
+const RI = (lo, hi)  => Math.floor(R(lo, hi + 1));                 // rand int
+const easeOut  = t   => 1 - (1 - t) * (1 - t);
+const easeInOut = t  => t < .5 ? 2*t*t : 1-((-2*t+2)**2)/2;
 
-/** @typedef {{ x:number, y:number }} V2 */
-/** @typedef {{ [key:string]: V2 }} Pose */
+function vLerp(a, b, t) { return { x: L(a.x,b.x,t), y: L(a.y,b.y,t) }; }
 
-/**
- * Build a pose object (shorthand).
- * @param {Object} def
- * @returns {Pose}
- */
-function mkPose(def) { return def; }
-
-const JOINT_KEYS = [
-  'head', 'neck', 'shoulder',
-  'elbowR', 'wristR',
-  'elbowL', 'wristL',
-  'hipR', 'kneeR', 'footR',
-  'hipL', 'kneeL', 'footL',
-  'swordPivot',   // where the hand grips the sword handle
-  'swordTip',     // forward tip direction vector (used for angle)
-];
-
-// ─── 10 COMBAT POSE DEFINITIONS ──────────────────────────────────────────────
+// ─── POSE SYSTEM ──────────────────────────────────────────────────────────────
+//
+// Coordinates are LOCAL offsets relative to the stickman's root point.
+// root = { x: worldX,  y: GROUND_Y }
+//
+// IMPORTANT: footR.y and footL.y MUST equal 0 in every grounded pose.
+// Upward = negative Y.   The root sits exactly on GROUND_Y.
+//
+// Joint keys:
+//   head, neck, shoulder,
+//   elbowR, wristR,   elbowL, wristL,
+//   hipR, kneeR, footR,
+//   hipL, kneeL, footL,
+//   swordPivot (= wristR in most poses),
+//   swordTip   (direction the blade points from pivot)
 
 const POSES = {
 
-  // 1 ── IdleReady: neutral guard stance
-  IdleReady: mkPose({
-    head:        { x:   0, y: -130 },
-    neck:        { x:   0, y: -100 },
-    shoulder:    { x:   0, y:  -82 },
-    elbowR:      { x:  38, y:  -58 },
-    wristR:      { x:  58, y:  -32 },
-    elbowL:      { x: -28, y:  -60 },
-    wristL:      { x: -44, y:  -30 },
-    hipR:        { x:  16, y:    0 },
-    kneeR:       { x:  22, y:   55 },
-    footR:       { x:  28, y:  110 },
-    hipL:        { x: -16, y:    0 },
-    kneeL:       { x: -20, y:   55 },
-    footL:       { x: -24, y:  110 },
-    swordPivot:  { x:  58, y:  -32 },
-    swordTip:    { x: 105, y:  -55 },
-  }),
+  // 1 IdleStance ── relaxed guard, weight balanced
+  IdleStance: {
+    head:       { x:  0, y:-130 }, neck:      { x:  0, y:-102 },
+    shoulder:   { x:  0, y: -84 },
+    elbowR:     { x: 36, y: -60 }, wristR:    { x: 56, y: -33 },
+    elbowL:     { x:-28, y: -60 }, wristL:    { x:-44, y: -30 },
+    hipR:       { x: 15, y: -28 }, kneeR:     { x: 20, y: -62 }, footR: { x: 26, y:  0 },
+    hipL:       { x:-15, y: -28 }, kneeL:     { x:-18, y: -62 }, footL: { x:-22, y:  0 },
+    swordPivot: { x: 56, y: -33 }, swordTip:  { x:110, y: -58 },
+  },
 
-  // 2 ── LungeAttack: fast horizontal thrust
-  LungeAttack: mkPose({
-    head:        { x:  60, y: -108 },
-    neck:        { x:  48, y:  -84 },
-    shoulder:    { x:  30, y:  -70 },
-    elbowR:      { x: 100, y:  -72 },
-    wristR:      { x: 162, y:  -74 },
-    elbowL:      { x:   2, y:  -48 },
-    wristL:      { x: -18, y:  -20 },
-    hipR:        { x:  38, y:    0 },
-    kneeR:       { x:  82, y:   48 },
-    footR:       { x: 125, y:   98 },
-    hipL:        { x: -22, y:    0 },
-    kneeL:       { x: -52, y:   44 },
-    footL:       { x: -82, y:   88 },
-    swordPivot:  { x: 162, y:  -74 },
-    swordTip:    { x: 260, y:  -76 },
-  }),
+  // 2 HorizontalLunge ── fast forward thrust, front foot planted
+  HorizontalLunge: {
+    head:       { x: 58, y:-108 }, neck:      { x: 46, y: -84 },
+    shoulder:   { x: 28, y: -70 },
+    elbowR:     { x: 96, y: -72 }, wristR:    { x:158, y: -74 },
+    elbowL:     { x:  4, y: -48 }, wristL:    { x:-16, y: -22 },
+    hipR:       { x: 36, y: -22 }, kneeR:     { x: 80, y: -50 }, footR: { x:120, y:  0 },
+    hipL:       { x:-20, y: -22 }, kneeL:     { x:-48, y: -46 }, footL: { x:-76, y:  0 },
+    swordPivot: { x:158, y: -74 }, swordTip:  { x:255, y: -76 },
+  },
 
-  // 3 ── OverheadSlash: big vertical downswing
-  OverheadSlash: mkPose({
-    head:        { x:  12, y: -132 },
-    neck:        { x:   8, y: -104 },
-    shoulder:    { x:   5, y:  -88 },
-    elbowR:      { x:  42, y: -155 },
-    wristR:      { x:  60, y: -195 },
-    elbowL:      { x:  18, y: -135 },
-    wristL:      { x:  35, y: -180 },
-    hipR:        { x:  22, y:    0 },
-    kneeR:       { x:  28, y:   55 },
-    footR:       { x:  35, y:  108 },
-    hipL:        { x: -18, y:    0 },
-    kneeL:       { x: -22, y:   55 },
-    footL:       { x: -26, y:  108 },
-    swordPivot:  { x:  60, y: -195 },
-    swordTip:    { x:  62, y:  -80 },   // blade points downward
-  }),
+  // 3 OverheadCleave ── both hands raised, blade overhead
+  OverheadCleave: {
+    head:       { x:  8, y:-132 }, neck:      { x:  5, y:-104 },
+    shoulder:   { x:  3, y: -88 },
+    elbowR:     { x: 40, y:-155 }, wristR:    { x: 56, y:-198 },
+    elbowL:     { x: 16, y:-138 }, wristL:    { x: 32, y:-182 },
+    hipR:       { x: 20, y: -24 }, kneeR:     { x: 24, y: -58 }, footR: { x: 30, y:  0 },
+    hipL:       { x:-16, y: -24 }, kneeL:     { x:-20, y: -58 }, footL: { x:-24, y:  0 },
+    swordPivot: { x: 56, y:-198 }, swordTip:  { x: 58, y: -90 },
+  },
 
-  // 4 ── SpinAttack: arms wide, mid-spin
-  SpinAttack: mkPose({
-    head:        { x: -10, y: -128 },
-    neck:        { x:  -6, y:  -99 },
-    shoulder:    { x:  -4, y:  -83 },
-    elbowR:      { x:  90, y:  -83 },
-    wristR:      { x: 145, y:  -82 },
-    elbowL:      { x: -80, y:  -83 },
-    wristL:      { x:-130, y:  -80 },
-    hipR:        { x:  20, y:    0 },
-    kneeR:       { x:  50, y:   60 },
-    footR:       { x:  75, y:  105 },
-    hipL:        { x: -20, y:    0 },
-    kneeL:       { x: -10, y:   65 },
-    footL:       { x:   0, y:  112 },
-    swordPivot:  { x: 145, y:  -82 },
-    swordTip:    { x: 225, y:  -82 },
-  }),
+  // 4 SpinSlash ── arms wide at peak of rotation
+  SpinSlash: {
+    head:       { x: -8, y:-128 }, neck:      { x: -4, y:-100 },
+    shoulder:   { x: -2, y: -83 },
+    elbowR:     { x: 88, y: -83 }, wristR:    { x:142, y: -82 },
+    elbowL:     { x:-76, y: -83 }, wristL:    { x:-124,y: -80 },
+    hipR:       { x: 18, y: -24 }, kneeR:     { x: 46, y: -58 }, footR: { x: 72, y:  0 },
+    hipL:       { x:-18, y: -24 }, kneeL:     { x:-10, y: -65 }, footL: { x:  0, y:  0 },
+    swordPivot: { x:142, y: -82 }, swordTip:  { x:222, y: -82 },
+  },
 
-  // 5 ── RisingStrike: low-to-high upward slash
-  RisingStrike: mkPose({
-    head:        { x:  18, y: -124 },
-    neck:        { x:  14, y:  -97 },
-    shoulder:    { x:  10, y:  -82 },
-    elbowR:      { x:  20, y:  -20 },
-    wristR:      { x:  30, y:   28 },
-    elbowL:      { x: -22, y:  -60 },
-    wristL:      { x: -38, y:  -30 },
-    hipR:        { x:  25, y:    0 },
-    kneeR:       { x:  40, y:   52 },
-    footR:       { x:  50, y:  105 },
-    hipL:        { x: -18, y:    0 },
-    kneeL:       { x: -30, y:   50 },
-    footL:       { x: -40, y:  100 },
-    swordPivot:  { x:  30, y:   28 },
-    swordTip:    { x: 110, y: -110 },   // blade angles up-right
-  }),
+  // 5 RisingCrescent ── low start, blade swings up diagonally
+  RisingCrescent: {
+    head:       { x: 16, y:-124 }, neck:      { x: 12, y: -97 },
+    shoulder:   { x:  8, y: -82 },
+    elbowR:     { x: 18, y: -22 }, wristR:    { x: 28, y:  -5 },
+    elbowL:     { x:-20, y: -60 }, wristL:    { x:-36, y: -30 },
+    hipR:       { x: 22, y: -22 }, kneeR:     { x: 38, y: -52 }, footR: { x: 48, y:  0 },
+    hipL:       { x:-16, y: -22 }, kneeL:     { x:-28, y: -50 }, footL: { x:-38, y:  0 },
+    swordPivot: { x: 28, y:  -5 }, swordTip:  { x:108, y:-114 },
+  },
 
-  // 6 ── ParryHigh: raised defensive block
-  ParryHigh: mkPose({
-    head:        { x:  -5, y: -128 },
-    neck:        { x:  -3, y:  -99 },
-    shoulder:    { x:  -2, y:  -83 },
-    elbowR:      { x:  50, y: -120 },
-    wristR:      { x:  72, y: -152 },
-    elbowL:      { x: -20, y: -100 },
-    wristL:      { x: -38, y: -130 },
-    hipR:        { x:  20, y:    0 },
-    kneeR:       { x:  30, y:   55 },
-    footR:       { x:  38, y:  108 },
-    hipL:        { x: -18, y:    0 },
-    kneeL:       { x: -25, y:   55 },
-    footL:       { x: -32, y:  108 },
-    swordPivot:  { x:  72, y: -152 },
-    swordTip:    { x: 100, y: -220 },
-  }),
+  // 6 LowBlock ── crouching guard, blade angles down-forward
+  LowBlock: {
+    head:       { x:  4, y: -88 }, neck:      { x:  3, y: -66 },
+    shoulder:   { x:  2, y: -54 },
+    elbowR:     { x: 38, y: -36 }, wristR:    { x: 60, y: -20 },
+    elbowL:     { x:-26, y: -38 }, wristL:    { x:-48, y: -22 },
+    hipR:       { x: 28, y: -16 }, kneeR:     { x: 52, y: -42 }, footR: { x: 66, y:  0 },
+    hipL:       { x:-24, y: -16 }, kneeL:     { x:-44, y: -42 }, footL: { x:-58, y:  0 },
+    swordPivot: { x: 60, y: -20 }, swordTip:  { x:128, y:   8 },
+  },
 
-  // 7 ── BlockLow: crouching guard
-  BlockLow: mkPose({
-    head:        { x:   5, y:  -90 },
-    neck:        { x:   3, y:  -68 },
-    shoulder:    { x:   2, y:  -55 },
-    elbowR:      { x:  40, y:  -38 },
-    wristR:      { x:  62, y:  -22 },
-    elbowL:      { x: -28, y:  -40 },
-    wristL:      { x: -50, y:  -24 },
-    hipR:        { x:  30, y:    0 },
-    kneeR:       { x:  55, y:   38 },
-    footR:       { x:  70, y:   75 },
-    hipL:        { x: -26, y:    0 },
-    kneeL:       { x: -48, y:   38 },
-    footL:       { x: -62, y:   75 },
-    swordPivot:  { x:  62, y:  -22 },
-    swordTip:    { x: 130, y:   10 },   // blade angled low-forward
-  }),
+  // 7 HighParry ── arms raised, blade blocks high
+  HighParry: {
+    head:       { x: -4, y:-128 }, neck:      { x: -2, y: -99 },
+    shoulder:   { x: -1, y: -83 },
+    elbowR:     { x: 48, y:-120 }, wristR:    { x: 70, y:-152 },
+    elbowL:     { x:-18, y:-102 }, wristL:    { x:-36, y:-130 },
+    hipR:       { x: 18, y: -24 }, kneeR:     { x: 28, y: -58 }, footR: { x: 36, y:  0 },
+    hipL:       { x:-16, y: -24 }, kneeL:     { x:-23, y: -58 }, footL: { x:-30, y:  0 },
+    swordPivot: { x: 70, y:-152 }, swordTip:  { x: 98, y:-222 },
+  },
 
-  // 8 ── BackstepDodge: lean back weight shift
-  BackstepDodge: mkPose({
-    head:        { x: -45, y: -122 },
-    neck:        { x: -35, y:  -95 },
-    shoulder:    { x: -25, y:  -80 },
-    elbowR:      { x:  15, y:  -60 },
-    wristR:      { x:  40, y:  -38 },
-    elbowL:      { x: -60, y:  -58 },
-    wristL:      { x: -82, y:  -35 },
-    hipR:        { x: -10, y:    0 },
-    kneeR:       { x: -15, y:   55 },
-    footR:       { x: -18, y:  108 },
-    hipL:        { x:  10, y:    0 },
-    kneeL:       { x:  55, y:   50 },
-    footL:       { x:  90, y:   98 },
-    swordPivot:  { x:  40, y:  -38 },
-    swordTip:    { x:  90, y:  -62 },
-  }),
+  // 8 DashRetreat ── body leans back, weight on back foot
+  DashRetreat: {
+    head:       { x:-44, y:-122 }, neck:      { x:-34, y: -95 },
+    shoulder:   { x:-24, y: -80 },
+    elbowR:     { x: 14, y: -60 }, wristR:    { x: 38, y: -38 },
+    elbowL:     { x:-58, y: -58 }, wristL:    { x:-80, y: -34 },
+    hipR:       { x: -8, y: -20 }, kneeR:     { x:-12, y: -54 }, footR: { x:-16, y:  0 },
+    hipL:       { x:  8, y: -20 }, kneeL:     { x: 52, y: -48 }, footL: { x: 86, y:  0 },
+    swordPivot: { x: 38, y: -38 }, swordTip:  { x: 88, y: -62 },
+  },
 
-  // 9 ── SideRoll: tucked rolling dodge
-  SideRoll: mkPose({
-    head:        { x:  50, y:  -50 },
-    neck:        { x:  35, y:  -35 },
-    shoulder:    { x:  20, y:  -22 },
-    elbowR:      { x:  15, y:   10 },
-    wristR:      { x:  22, y:   35 },
-    elbowL:      { x:  -5, y:    5 },
-    wristL:      { x:  -8, y:   28 },
-    hipR:        { x:  10, y:   18 },
-    kneeR:       { x:  -5, y:   55 },
-    footR:       { x: -18, y:   80 },
-    hipL:        { x:  -8, y:   12 },
-    kneeL:       { x:  25, y:   48 },
-    footL:       { x:  45, y:   72 },
-    swordPivot:  { x:  22, y:   35 },
-    swordTip:    { x:  80, y:   30 },
-  }),
+  // 9 ForwardRoll ── tucked mid-roll, both feet lifted slightly
+  // (brief air moment – feet near 0 to keep it close to ground)
+  ForwardRoll: {
+    head:       { x: 48, y: -48 }, neck:      { x: 34, y: -34 },
+    shoulder:   { x: 20, y: -22 },
+    elbowR:     { x: 14, y:  -4 }, wristR:    { x: 20, y:  12 },
+    elbowL:     { x: -4, y:  -2 }, wristL:    { x: -6, y:  14 },
+    hipR:       { x:  8, y:  -8 }, kneeR:     { x: -4, y: -36 }, footR: { x:-16, y: -14 },
+    hipL:       { x: -6, y:  -6 }, kneeL:     { x: 22, y: -34 }, footL: { x: 40, y: -12 },
+    swordPivot: { x: 20, y:  12 }, swordTip:  { x: 78, y:   8 },
+  },
 
-  // 10 ── HeavyDecapitationSwing: fully extended horizontal mega-swing
-  HeavyDecapitationSwing: mkPose({
-    head:        { x:  25, y: -118 },
-    neck:        { x:  20, y:  -93 },
-    shoulder:    { x:  14, y:  -78 },
-    elbowR:      { x: 120, y:  -90 },
-    wristR:      { x: 195, y:  -92 },
-    elbowL:      { x: 105, y:  -86 },
-    wristL:      { x: 175, y:  -88 },
-    hipR:        { x:  30, y:    0 },
-    kneeR:       { x:  60, y:   50 },
-    footR:       { x:  90, y:  100 },
-    hipL:        { x: -28, y:    0 },
-    kneeL:       { x: -50, y:   48 },
-    footL:       { x: -80, y:   96 },
-    swordPivot:  { x: 195, y:  -92 },
-    swordTip:    { x: 320, y:  -94 },   // massive extended reach
-  }),
+  // 10 DecapitationSwing ── full horizontal mega reach, max extension
+  DecapitationSwing: {
+    head:       { x: 24, y:-118 }, neck:      { x: 18, y: -93 },
+    shoulder:   { x: 12, y: -78 },
+    elbowR:     { x:118, y: -88 }, wristR:    { x:192, y: -90 },
+    elbowL:     { x:102, y: -85 }, wristL:    { x:172, y: -86 },
+    hipR:       { x: 28, y: -20 }, kneeR:     { x: 58, y: -52 }, footR: { x: 88, y:  0 },
+    hipL:       { x:-26, y: -20 }, kneeL:     { x:-48, y: -50 }, footL: { x:-76, y:  0 },
+    swordPivot: { x:192, y: -90 }, swordTip:  { x:316, y: -92 },
+  },
 };
 
-// Attack name → whether it is high-velocity (triggers screen shake + big VFX)
-const HIGH_VELOCITY = {
-  SpinAttack: true,
-  OverheadSlash: true,
-  HeavyDecapitationSwing: true,
-  LungeAttack: false,
-  RisingStrike: false,
-  ParryHigh: false,
-  BlockLow: false,
-  BackstepDodge: false,
-  SideRoll: false,
+const ATTACK_NAMES = Object.keys(POSES).filter(n => n !== 'IdleStance');
+
+// High-velocity = triggers screen shake + more VFX
+const IS_HIGH_VEL = {
+  SpinSlash: true, OverheadCleave: true, DecapitationSwing: true,
 };
 
-// Ordered list for random selection (indices 0–8 = attack states)
-const ATTACK_STATE_NAMES = [
-  'LungeAttack',
-  'OverheadSlash',
-  'SpinAttack',
-  'RisingStrike',
-  'ParryHigh',
-  'BlockLow',
-  'BackstepDodge',
-  'SideRoll',
-  'HeavyDecapitationSwing',
-];
-
-// ─── REALISTIC WEAPON ────────────────────────────────────────────────────────
+// ─── REALISTIC WEAPON ─────────────────────────────────────────────────────────
 
 class RealisticWeapon {
   /**
-   * @param {string} src  - Path to the sword PNG asset
-   * @param {number} totalLen - Full sword length in pixels (at scale 1)
-   * @param {number} gripOffset - Pixels from left edge to grip centre
+   * @param {string}  src        - path to katana PNG
+   * @param {number}  bladeLen   - total drawn length (px)
+   * @param {number}  gripLen    - distance from image left edge to grip centre
    */
-  constructor(src, totalLen = 260, gripOffset = 48) {
-    this.totalLen   = totalLen;
-    this.gripOffset = gripOffset;
-    this.scale      = 1.0;
+  constructor(src, bladeLen = 260, gripLen = 48) {
+    this.bladeLen = bladeLen;
+    this.gripLen  = gripLen;
 
-    this._img    = new Image();
-    this._ready  = false;
+    this._img   = new Image();
+    this._ready = false;
     this._img.onload  = () => { this._ready = true; };
-    this._img.onerror = () => {
-      console.warn('[RealisticWeapon] Asset failed to load:', src, '— using canvas fallback');
-    };
-    this._img.src = src;
+    this._img.onerror = () => console.warn('[Weapon] PNG not found – using fallback');
+    this._img.src     = src;
 
-    // Motion-blur trail: stores past {pivotX, pivotY, angle, alpha} snapshots
-    this._trail = [];
-    this._trailMaxLen = 10;
-    this._lastAngle = 0;
+    // Trail buffer: array of {px, py, angle, life}
+    this._trail    = [];
+    this._trailMax = 12;
   }
 
   /**
-   * Call once per frame from the stickman's draw pass.
+   * Draw the weapon each frame.
    * @param {CanvasRenderingContext2D} ctx
-   * @param {number} pivotX  – world-X of the hand-grip
-   * @param {number} pivotY  – world-Y of the hand-grip
-   * @param {number} tipX    – world-X of the blade tip (determines angle)
-   * @param {number} tipY    – world-Y of the blade tip
-   * @param {boolean} showTrail
-   * @param {number}  facingDir  1 or -1
-   * @param {boolean} isAttacking  – boosted glow while attacking
+   * @param {number} px, py    – world coords of grip joint
+   * @param {number} tx, ty    – world coords of sword tip direction
+   * @param {boolean} trail    – show motion blur trail?
+   * @param {boolean} glow     – attack glow?
    */
-  draw(ctx, pivotX, pivotY, tipX, tipY, showTrail, facingDir, isAttacking) {
-    const angle = Math.atan2(tipY - pivotY, tipX - pivotX);
+  draw(ctx, px, py, tx, ty, trail, glow) {
+    const angle = Math.atan2(ty - py, tx - px);
 
-    // --- Motion blur trail (drawn first, underneath) ---
-    if (showTrail) {
-      this._trail.unshift({ pivotX, pivotY, angle, alpha: 0.55 });
-      if (this._trail.length > this._trailMaxLen) this._trail.pop();
-    } else {
-      // Decay existing trail
-      this._trail.forEach(t => t.alpha *= 0.82);
-      this._trail = this._trail.filter(t => t.alpha > 0.02);
+    // Push to trail
+    if (trail) {
+      this._trail.unshift({ px, py, angle, life: 0.7 });
+      if (this._trail.length > this._trailMax) this._trail.pop();
     }
 
-    // Draw trail frames (oldest first, most transparent)
+    // Decay & draw trail frames (back to front)
     for (let i = this._trail.length - 1; i >= 0; i--) {
       const tr = this._trail[i];
-      const trAlpha = tr.alpha * (1 - i / this._trailMaxLen);
+      tr.life *= 0.78;
+      if (tr.life < 0.02) { this._trail.splice(i, 1); continue; }
       ctx.save();
-      ctx.globalAlpha = trAlpha;
-      ctx.translate(tr.pivotX, tr.pivotY);
+      ctx.globalAlpha = tr.life * (1 - i / this._trailMax);
+      ctx.translate(tr.px, tr.py);
       ctx.rotate(tr.angle);
-      if (facingDir === -1) ctx.scale(1, -1);
-      this._renderBlade(ctx, isAttacking, 0.35);
+      this._blade(ctx, false, 0.28);
       ctx.restore();
     }
 
-    // --- Main sword ---
+    // Main sword
     ctx.save();
-    ctx.translate(pivotX, pivotY);
+    ctx.translate(px, py);
     ctx.rotate(angle);
-    if (facingDir === -1) ctx.scale(1, -1);
-    this._renderBlade(ctx, isAttacking, 1.0);
+    this._blade(ctx, glow, 1.0);
     ctx.restore();
-
-    this._lastAngle = angle;
   }
 
-  _renderBlade(ctx, isAttacking, masterAlpha) {
-    ctx.globalAlpha = masterAlpha;
+  _blade(ctx, glow, alpha) {
+    ctx.globalAlpha = alpha;
+    const w = this.bladeLen;
+    const ox = -this.gripLen;   // left offset so grip is at origin
 
     if (this._ready) {
-      // Draw real PNG asset
-      const w = this.totalLen * this.scale;
       const h = (this._img.naturalHeight / this._img.naturalWidth) * w;
-      const x = -this.gripOffset * this.scale;
-      const y = -h / 2;
-
-      if (isAttacking) {
-        ctx.shadowColor = '#88ccff';
-        ctx.shadowBlur  = 22;
-      }
-      ctx.drawImage(this._img, x, y, w, h);
-
+      if (glow) { ctx.shadowColor = '#88ccff'; ctx.shadowBlur = 24; }
+      ctx.drawImage(this._img, ox, -h / 2, w, h);
     } else {
-      // Canvas fallback — stylised katana silhouette
-      const L = this.totalLen * this.scale;
-      const grip = this.gripOffset * this.scale;
+      // Fallback canvas katana
+      const grip = this.gripLen;
 
-      // Handle
-      ctx.fillStyle = '#2c1810';
-      ctx.beginPath();
-      ctx.roundRect(-grip, -5, grip * 0.6, 10, 3);
-      ctx.fill();
+      // Handle wrap
+      ctx.fillStyle = '#1a0d06';
+      ctx.beginPath(); ctx.roundRect(ox, -5, grip * 0.6, 10, 3); ctx.fill();
 
-      // Guard
-      ctx.fillStyle = '#888';
-      ctx.beginPath();
-      ctx.ellipse(-grip * 0.4, 0, 8, 14, 0, 0, Math.PI * 2);
-      ctx.fill();
+      // Tsuba guard
+      ctx.fillStyle = '#999';
+      ctx.beginPath(); ctx.ellipse(ox + grip*0.62, 0, 9, 15, 0, 0, Math.PI*2); ctx.fill();
 
-      // Blade (tapers to tip)
-      const bladeStart = -grip * 0.4 + 8;
-      const bladeEnd   = L - grip;
+      // Blade gradient
       ctx.save();
-      const grad = ctx.createLinearGradient(bladeStart, -4, bladeEnd, 1);
-      grad.addColorStop(0,   '#cccccc');
-      grad.addColorStop(0.5, '#f0f0f0');
-      grad.addColorStop(1,   '#e8e8e8');
-      ctx.fillStyle = grad;
-      if (isAttacking) { ctx.shadowColor = '#aadaff'; ctx.shadowBlur = 18; }
+      const g = ctx.createLinearGradient(ox + grip*0.7, -4, ox + w, 0);
+      g.addColorStop(0, '#ccc'); g.addColorStop(0.45, '#f4f4f4'); g.addColorStop(1, '#e0e0e0');
+      ctx.fillStyle = g;
+      if (glow) { ctx.shadowColor = '#b0d8ff'; ctx.shadowBlur = 20; }
       ctx.beginPath();
-      ctx.moveTo(bladeStart, -4);
-      ctx.lineTo(bladeEnd,    0);
-      ctx.lineTo(bladeStart,  4);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(ox + grip*0.7, -4);
+      ctx.lineTo(ox + w,          0);
+      ctx.lineTo(ox + grip*0.7,   4);
+      ctx.closePath(); ctx.fill();
       ctx.restore();
     }
 
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur  = 0;
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
   }
 }
 
-// ─── SLASH ARC PARTICLE ───────────────────────────────────────────────────────
-
-class SlashArc {
-  constructor(x, y, angle, power) {
-    this.x      = x;
-    this.y      = y;
-    this.angle  = angle;
-    this.power  = power;
-    this.r      = _rand(15, 35);
-    this.maxR   = _rand(90, 200) * (0.5 + power * 0.5);
-    this.arc    = _rand(0.6, 1.4);
-    this.life   = 1.0;
-    this.decay  = _rand(0.025, 0.055);
-    this.thick  = _rand(2, 7) * (0.5 + power * 0.5);
-    this.color  = power > 0.65
-      ? `hsl(${_rInt(40,60)},100%,75%)`
-      : `hsl(${_rInt(190,230)},100%,68%)`;
-  }
-
-  update() {
-    this.r = _lerp(this.r, this.maxR, 0.14);
-    this.life -= this.decay;
-  }
-
-  draw(ctx) {
-    ctx.save();
-    ctx.globalAlpha = _clamp(this.life, 0, 1);
-    ctx.strokeStyle = this.color;
-    ctx.lineWidth   = this.thick * this.life;
-    ctx.shadowColor = this.color;
-    ctx.shadowBlur  = 18;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.r,
-            this.angle - this.arc / 2,
-            this.angle + this.arc / 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  get dead() { return this.life <= 0; }
-}
-
-// ─── SPARK PARTICLE ──────────────────────────────────────────────────────────
+// ─── VFX PARTICLES ────────────────────────────────────────────────────────────
 
 class Spark {
   constructor(x, y, power) {
-    const spd   = _rand(3, 11) * (0.5 + power);
-    const ang   = _rand(0, Math.PI * 2);
-    this.x      = x;   this.y  = y;
-    this.vx     = Math.cos(ang) * spd;
-    this.vy     = Math.sin(ang) * spd - _rand(1, 4);
-    this.life   = 1.0;
-    this.decay  = _rand(0.04, 0.08);
-    this.size   = _rand(1.5, 4.5) * (0.5 + power * 0.5);
-    this.color  = power > 0.7
-      ? `hsl(${_rInt(30,55)},100%,70%)`
-      : `hsl(${_rInt(0,25)},100%,60%)`;
+    const a = R(0, Math.PI*2), s = R(3, 12) * (0.5 + power);
+    this.x=x; this.y=y;
+    this.vx=Math.cos(a)*s; this.vy=Math.sin(a)*s - R(1,4);
+    this.life=1; this.decay=R(.04,.09);
+    this.size=R(1.5,4.5)*(0.5+power*.5);
+    this.color=power>.7?`hsl(${RI(30,55)},100%,70%)`:`hsl(${RI(0,25)},100%,62%)`;
   }
-
-  update() {
-    this.x  += this.vx;
-    this.y  += this.vy;
-    this.vy += 0.35;
-    this.vx *= 0.95;
-    this.life -= this.decay;
-  }
-
-  draw(ctx) {
-    ctx.save();
-    ctx.globalAlpha  = _clamp(this.life, 0, 1);
-    ctx.fillStyle    = this.color;
-    ctx.shadowColor  = this.color;
-    ctx.shadowBlur   = 8;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2);
-    ctx.fill();
+  update(){ this.x+=this.vx; this.y+=this.vy; this.vy+=.35; this.vx*=.95; this.life-=this.decay; }
+  draw(ctx){
+    ctx.save(); ctx.globalAlpha=C(this.life,0,1);
+    ctx.fillStyle=this.color; ctx.shadowColor=this.color; ctx.shadowBlur=9;
+    ctx.beginPath(); ctx.arc(this.x,this.y,this.size*this.life,0,Math.PI*2); ctx.fill();
     ctx.restore();
   }
-
-  get dead() { return this.life <= 0; }
+  get dead(){ return this.life<=0; }
 }
 
-// ─── STICKMAN (SOLID FILLED SILHOUETTE) ──────────────────────────────────────
+class SlashArc {
+  constructor(x, y, angle, power){
+    this.x=x; this.y=y; this.angle=angle;
+    this.r=R(20,40); this.maxR=R(90,200)*(0.5+power*.5);
+    this.arc=R(.7,1.5); this.life=1; this.decay=R(.025,.06);
+    this.thick=R(2,7)*(0.5+power*.5);
+    this.color=power>.65?`hsl(${RI(38,60)},100%,72%)`:`hsl(${RI(190,230)},100%,66%)`;
+  }
+  update(){ this.r=L(this.r,this.maxR,.15); this.life-=this.decay; }
+  draw(ctx){
+    ctx.save(); ctx.globalAlpha=C(this.life,0,1);
+    ctx.strokeStyle=this.color; ctx.lineWidth=this.thick*this.life;
+    ctx.shadowColor=this.color; ctx.shadowBlur=18;
+    ctx.beginPath(); ctx.arc(this.x,this.y,this.r,this.angle-this.arc/2,this.angle+this.arc/2);
+    ctx.stroke(); ctx.restore();
+  }
+  get dead(){ return this.life<=0; }
+}
+
+// ─── STICKMAN ─────────────────────────────────────────────────────────────────
 
 class Stickman {
   /**
-   * @param {number} x       – Root world X
-   * @param {number} y       – Root world Y
-   * @param {number} facing  – 1 = right, -1 = left
-   * @param {string} fillColor   – Solid silhouette fill
-   * @param {string} accentColor – Glow / accent (headband etc.)
+   * @param {number}          rootX
+   * @param {number}          groundY   – the fixed GROUND_Y value
+   * @param {1|-1}            facing    – 1=right, -1=left
+   * @param {string}          bodyColor – solid fill colour
+   * @param {string}          accent    – glow / headband colour
    * @param {RealisticWeapon} weapon
    */
-  constructor(x, y, facing, fillColor, accentColor, weapon) {
-    this.rootX   = x;
-    this.rootY   = y;
+  constructor(rootX, groundY, facing, bodyColor, accent, weapon) {
+    this.rootX   = rootX;
+    this.groundY = groundY;
     this.facing  = facing;
-    this.fill    = fillColor;
-    this.accent  = accentColor;
+    this.color   = bodyColor;
+    this.accent  = accent;
     this.weapon  = weapon;
 
-    // Live interpolated joints
-    this.joints  = this._copyPose(POSES.IdleReady);
+    // Live joints (start from IdleStance copy)
+    this.J = this._copy(POSES.IdleStance);
 
-    // Pose state machine
-    this._stateName   = 'IdleReady';
-    this._srcPose     = POSES.IdleReady;
-    this._dstPose     = POSES.IdleReady;
-    this._poseT       = 1.0;
-    this._poseSpeed   = 5.0;
+    // Pose machine
+    this._name  = 'IdleStance';
+    this._src   = this._copy(POSES.IdleStance);
+    this._dst   = POSES.IdleStance;
+    this._t     = 1;
+    this._spd   = 5;
 
     // Idle breathing
-    this._breathT   = Math.random() * Math.PI * 2;
-    this._breathAmp = 5;
+    this._breathT = Math.random() * Math.PI * 2;
 
     // VFX
-    this.particles   = [];  // SlashArc + Spark
+    this.particles   = [];
     this._shakePow   = 0;
-    this._shake      = { x: 0, y: 0 };
+    this._shake      = {x:0, y:0};
     this._flashTimer = 0;
-    this._isAttacking = false;
+    this._attacking  = false;
   }
 
-  // ── Pose helpers ────────────────────────────────────────────────────────
+  // ── Pose helpers ─────────────────────────────────────────────────────────
 
-  _copyPose(src) {
-    const out = {};
-    for (const k in src) out[k] = { x: src[k].x, y: src[k].y };
-    return out;
+  _copy(src) {
+    const o = {};
+    for (const k in src) o[k] = { x: src[k].x, y: src[k].y };
+    return o;
   }
 
-  _transitionTo(poseName, speed) {
-    this._srcPose    = this._copyPose(this.joints);
-    this._dstPose    = POSES[poseName];
-    this._stateName  = poseName;
-    this._poseSpeed  = speed;
-    this._poseT      = 0;
+  _go(poseName, speed) {
+    this._src  = this._copy(this.J);
+    this._dst  = POSES[poseName];
+    this._name = poseName;
+    this._spd  = speed;
+    this._t    = 0;
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // ── Public API ────────────────────────────────────────────────────────────
 
   /**
-   * Trigger a random attack animation immediately.
-   * Velocity drives VFX intensity (0..1).
+   * Randomly pick one of the 9 attack animations.
+   * @returns {string} animation name
    */
   attack() {
-    const idx       = Math.floor(Math.random() * ATTACK_STATE_NAMES.length);
-    const stateName = ATTACK_STATE_NAMES[idx];
-    const isHV      = HIGH_VELOCITY[stateName] || false;
-    const velocity  = isHV ? _rand(0.75, 1.0) : _rand(0.35, 0.65);
+    const idx  = Math.floor(Math.random() * ATTACK_NAMES.length);
+    const name = ATTACK_NAMES[idx];
+    const hv   = IS_HIGH_VEL[name] || false;
+    const vel  = hv ? R(0.76,1.0) : R(0.38,0.68);
+    const spd  = hv ? R(14,20)    : R(8,13);
 
-    const animSpeed = isHV ? _rand(14, 20) : _rand(7, 12);
-    this._transitionTo(stateName, animSpeed);
-    this._isAttacking = true;
-    this._flashTimer  = 0.12;
+    this._go(name, spd);
+    this._attacking  = true;
+    this._flashTimer = 0.12;
 
-    // After animation peaks: VFX + recover
-    const peakMs  = (1 / animSpeed) * 700;
-    const recoverMs = peakMs + 180;
+    const peakMs    = (1/spd) * 680;
+    const recoverMs = peakMs + 190;
 
     setTimeout(() => {
-      this._spawnVFX(velocity);
-      if (isHV) this._triggerShake(velocity);
+      const tp = this._worldJ('swordTip');
+      const pp = this._worldJ('swordPivot');
+      this._spawnVFX(tp, pp, vel);
+      if (hv) this._shakePow = vel;
     }, peakMs);
 
     setTimeout(() => {
-      this._isAttacking = false;
-      this._transitionTo('IdleReady', 4);
+      this._attacking = false;
+      this._go('IdleStance', 4);
     }, recoverMs);
 
-    return stateName;  // caller can log which move
+    return name;
   }
 
-  /** Recoil (wrong key) */
   recoil() {
-    this._flashTimer = 0.18;
-    this._shakePow   = 0.35;
-    // Quick lean-back by interpolating to BackstepDodge briefly
-    this._transitionTo('BackstepDodge', 18);
-    setTimeout(() => this._transitionTo('IdleReady', 5), 200);
+    this._flashTimer = 0.2;
+    this._shakePow   = 0.3;
+    this._go('DashRetreat', 16);
+    setTimeout(() => this._go('IdleStance', 4), 220);
   }
 
-  /** Receive an opponent's hit */
   takeHit() {
-    this._flashTimer = 0.22;
+    this._flashTimer = 0.24;
     this._shakePow   = 0.5;
-    this._transitionTo('BackstepDodge', 12);
-    setTimeout(() => this._transitionTo('IdleReady', 4), 320);
+    this._go('DashRetreat', 12);
+    setTimeout(() => this._go('IdleStance', 4), 340);
   }
 
-  // ── Per-frame update ─────────────────────────────────────────────────────
+  // ── Update ────────────────────────────────────────────────────────────────
 
   update(dt) {
-    // Breathing (only during idle)
-    this._breathT += dt * 1.8;
-    const bob = this._stateName === 'IdleReady'
-      ? Math.sin(this._breathT) * this._breathAmp
-      : 0;
+    // Breathing offset (idle only)
+    this._breathT += dt * 1.7;
+    const bob = this._name === 'IdleStance'
+      ? Math.sin(this._breathT) * 4 : 0;
 
-    // Pose interpolation (ease-in-out)
-    if (this._poseT < 1) {
-      this._poseT = _clamp(this._poseT + dt * this._poseSpeed, 0, 1);
-      const et = _easeInOut(this._poseT);
-      for (const k in this._dstPose) {
-        this.joints[k] = _vecLerp(this._srcPose[k], this._dstPose[k], et);
+    // Pose interpolation
+    if (this._t < 1) {
+      this._t = C(this._t + dt * this._spd, 0, 1);
+      const et = easeInOut(this._t);
+      for (const k in this._dst) {
+        this.J[k] = vLerp(this._src[k], this._dst[k], et);
       }
     }
 
-    // Apply breathing offset on top
-    if (this._stateName === 'IdleReady') {
-      for (const k in this.joints) {
-        this.joints[k] = { x: this.joints[k].x, y: this.joints[k].y + bob * 0.35 };
-      }
+    // Apply breathing
+    if (this._name === 'IdleStance') {
+      for (const k in this.J) this.J[k] = { x: this.J[k].x, y: this.J[k].y + bob * .35 };
     }
 
     // Particles
     this.particles.forEach(p => p.update());
     this.particles = this.particles.filter(p => !p.dead);
 
-    // Screen shake
+    // Shake decay
     if (this._shakePow > 0) {
       this._shakePow = Math.max(0, this._shakePow - dt * 9);
       const m = this._shakePow * 14;
-      this._shake.x = _rand(-m, m);
-      this._shake.y = _rand(-m, m);
-    } else {
-      this._shake.x = 0;
-      this._shake.y = 0;
-    }
+      this._shake.x = R(-m, m); this._shake.y = R(-m, m);
+    } else { this._shake.x = 0; this._shake.y = 0; }
 
-    // Flash decay
     if (this._flashTimer > 0) this._flashTimer -= dt;
   }
 
-  // ── Per-frame draw ────────────────────────────────────────────────────────
+  // ── Draw ──────────────────────────────────────────────────────────────────
 
-  /** @param {CanvasRenderingContext2D} ctx */
   draw(ctx) {
-    ctx.save();
-    ctx.translate(
-      this.rootX + this._shake.x,
-      this.rootY + this._shake.y
-    );
-    ctx.scale(this.facing, 1);
+    // Root is exactly at (rootX, groundY)
+    const rx = this.rootX + this._shake.x;
+    const ry = this.groundY + this._shake.y;
 
-    // Particles (world-space, drawn before body)
+    ctx.save();
+    ctx.translate(rx, ry);
+    ctx.scale(this.facing, 1);   // mirror for left-facing
+
+    // Particles (world space)
     this.particles.forEach(p => {
       ctx.save();
-      // De-transform so particles are in world space
       ctx.scale(this.facing, 1);
-      ctx.translate(-this.rootX, -this.rootY);
+      ctx.translate(-rx, -ry);
       p.draw(ctx);
       ctx.restore();
     });
 
-    // Body
-    this._drawSilhouette(ctx);
+    this._drawBody(ctx);
 
-    // Weapon (on top of body)
-    const j  = this.joints;
-    const pw = this._worldJ('swordPivot');
-    const tw = this._worldJ('swordTip');
-    const showTrail = this._isAttacking;
+    // Weapon (world-space coords converted to local)
+    ctx.restore();   // restore before drawing weapon in world space
+
+    const pp = this._worldJ('swordPivot');
+    const tp = this._worldJ('swordTip');
     this.weapon.draw(
-      ctx,
-      pw.x, pw.y, tw.x, tw.y,
-      showTrail,
-      this.facing,
-      this._isAttacking
+      ctx, pp.x, pp.y, tp.x, tp.y,
+      this._attacking, this._attacking
     );
-
-    ctx.restore();
   }
 
-  // ── Private: world joint ─────────────────────────────────────────────────
+  // ── Private: world joint ──────────────────────────────────────────────────
 
-  /** Convert local joint to world (already in root-relative space; facing flips X) */
   _worldJ(name) {
-    const j = this.joints[name];
+    const j = this.J[name];
     return {
       x: this.rootX + j.x * this.facing + this._shake.x,
-      y: this.rootY + j.y              + this._shake.y,
+      y: this.groundY + j.y + this._shake.y,
     };
   }
 
-  // ── Private: solid silhouette drawing ────────────────────────────────────
+  // ── Private: filled silhouette ────────────────────────────────────────────
 
-  _drawSilhouette(ctx) {
-    const j     = this.joints;
-    const flash = this._flashTimer > 0;
-    const fill  = flash ? '#ffffff' : this.fill;
-    const glow  = flash ? 35 : 12;
+  _drawBody(ctx) {
+    const J   = this.J;
+    const fl  = this._flashTimer > 0;
+    const col = fl ? '#ffffff' : this.color;
+    const gl  = fl ? 30 : 10;
+    const acc = this.accent;
 
-    ctx.shadowColor = this.accent;
-    ctx.shadowBlur  = glow;
+    ctx.shadowColor = acc;
+    ctx.shadowBlur  = gl;
 
-    // Torso (solid capsule between shoulder and hip-centre)
-    const hipCX = (j.hipR.x + j.hipL.x) / 2;
-    const hipCY = (j.hipR.y + j.hipL.y) / 2;
-    this._capsule(ctx, fill, j.neck, { x: hipCX, y: hipCY }, 14);
+    // Hip centre (average of both hips)
+    const hx = (J.hipR.x + J.hipL.x) / 2;
+    const hy = (J.hipR.y + J.hipL.y) / 2;
+    const hc = { x: hx, y: hy };
 
-    // Arms
-    this._capsule(ctx, fill, j.shoulder, j.elbowR, 7);
-    this._capsule(ctx, fill, j.elbowR,   j.wristR,  6);
-    this._capsule(ctx, fill, j.shoulder, j.elbowL, 7);
-    this._capsule(ctx, fill, j.elbowL,   j.wristL,  6);
+    // ── Torso ──
+    this._pill(ctx, col, J.neck, hc, 13);
 
-    // Legs
-    this._capsule(ctx, fill, { x: hipCX, y: hipCY }, j.kneeR, 9);
-    this._capsule(ctx, fill, j.kneeR, j.footR, 8);
-    this._capsule(ctx, fill, { x: hipCX, y: hipCY }, j.kneeL, 9);
-    this._capsule(ctx, fill, j.kneeL, j.footL, 8);
+    // ── Arms ──
+    this._pill(ctx, col, J.shoulder, J.elbowR, 7);
+    this._pill(ctx, col, J.elbowR,   J.wristR,  6);
+    this._pill(ctx, col, J.shoulder, J.elbowL, 7);
+    this._pill(ctx, col, J.elbowL,   J.wristL,  6);
 
-    // Foot pads
-    this._oval(ctx, fill, j.footR, 14, 6);
-    this._oval(ctx, fill, j.footL, 14, 6);
+    // ── Legs ──
+    this._pill(ctx, col, hc,       J.kneeR, 9);
+    this._pill(ctx, col, J.kneeR, J.footR, 8);
+    this._pill(ctx, col, hc,       J.kneeL, 9);
+    this._pill(ctx, col, J.kneeL, J.footL, 8);
 
-    // Head (filled circle)
+    // ── Foot pads ──
+    this._ellipse(ctx, col, J.footR, 16, 5);
+    this._ellipse(ctx, col, J.footL, 16, 5);
+
+    // ── Head ──
     ctx.beginPath();
-    ctx.arc(j.head.x, j.head.y, 22, 0, Math.PI * 2);
-    ctx.fillStyle   = fill;
-    ctx.shadowBlur  = glow;
-    ctx.shadowColor = this.accent;
+    ctx.arc(J.head.x, J.head.y, 22, 0, Math.PI * 2);
+    ctx.fillStyle   = col;
+    ctx.shadowBlur  = gl; ctx.shadowColor = acc;
     ctx.fill();
 
-    // Ninja headband stripe
+    // ── Headband ── (flowing arc on upper-half of head)
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(j.head.x, j.head.y, 22, -Math.PI * 0.65, -Math.PI * 0.05);
+    ctx.strokeStyle = acc;
     ctx.lineWidth   = 7;
-    ctx.strokeStyle = this.accent;
-    ctx.shadowColor = this.accent;
-    ctx.shadowBlur  = 20;
+    ctx.shadowColor = acc; ctx.shadowBlur = 22;
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.arc(J.head.x, J.head.y, 22, -2.2, -0.5);
+    ctx.stroke();
+    // Trailing scarf end
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(J.head.x + 18, J.head.y - 10);
+    ctx.bezierCurveTo(
+      J.head.x + 34, J.head.y - 5,
+      J.head.x + 42, J.head.y + 8,
+      J.head.x + 36, J.head.y + 20
+    );
     ctx.stroke();
     ctx.restore();
 
-    // Eye glint (two small white dots)
-    const ex = j.head.x + 8 * this.facing;
-    const ey = j.head.y + 3;
+    // ── Eye glint ──
     ctx.save();
-    ctx.fillStyle   = '#ffffff';
-    ctx.shadowBlur  = 6;
-    ctx.shadowColor = '#ffffff';
+    ctx.fillStyle   = '#fff';
+    ctx.shadowColor = '#fff';
+    ctx.shadowBlur  = 7;
     ctx.beginPath();
-    ctx.arc(ex, ey, 3.5, 0, Math.PI * 2);
+    ctx.arc(J.head.x + 9, J.head.y + 2, 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
 
-  /** Draw a rounded rectangle (capsule) between two joints. */
-  _capsule(ctx, fill, a, b, radius) {
-    const dx  = b.x - a.x;
-    const dy  = b.y - a.y;
+  /** Filled rounded pill between two points (capsule shape). */
+  _pill(ctx, color, a, b, r) {
+    const dx  = b.x - a.x, dy = b.y - a.y;
     const len = Math.hypot(dx, dy);
     if (len < 0.1) return;
-
-    const ang = Math.atan2(dy, dx);
-
     ctx.save();
     ctx.translate(a.x, a.y);
-    ctx.rotate(ang);
-    ctx.fillStyle = fill;
+    ctx.rotate(Math.atan2(dy, dx));
+    ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.roundRect(0, -radius, len, radius * 2, radius);
+    ctx.roundRect(0, -r, len, r * 2, r);
     ctx.fill();
     ctx.restore();
   }
 
-  /** Draw a filled ellipse at a joint (for feet). */
-  _oval(ctx, fill, p, rx, ry) {
+  _ellipse(ctx, color, p, rx, ry) {
     ctx.save();
-    ctx.fillStyle = fill;
+    ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.ellipse(p.x, p.y + ry * 0.5, rx, ry, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.x, p.y + ry * .5, rx, ry, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
 
   // ── VFX ──────────────────────────────────────────────────────────────────
 
-  _spawnVFX(velocity) {
-    const tp = this._worldJ('swordTip');
-    const pp = this._worldJ('swordPivot');
-    const angle = Math.atan2(tp.y - pp.y, tp.x - pp.x);
-
-    const sparkCount = Math.floor(_lerp(8, 30, velocity));
-    for (let i = 0; i < sparkCount; i++) {
-      this.particles.push(new Spark(tp.x, tp.y, velocity));
-    }
-
-    const arcCount = velocity > 0.65 ? (velocity > 0.85 ? 4 : 2) : 1;
-    for (let i = 0; i < arcCount; i++) {
-      this.particles.push(new SlashArc(tp.x, tp.y, angle, velocity));
-    }
-  }
-
-  _triggerShake(power) {
-    this._shakePow = _clamp(power, 0, 1);
+  _spawnVFX(tipW, pivotW, vel) {
+    const angle = Math.atan2(tipW.y - pivotW.y, tipW.x - pivotW.x);
+    const count = Math.floor(L(8, 32, vel));
+    for (let i = 0; i < count; i++) this.particles.push(new Spark(tipW.x, tipW.y, vel));
+    const arcs = vel > .65 ? (vel > .85 ? 4 : 2) : 1;
+    for (let i = 0; i < arcs; i++) this.particles.push(new SlashArc(tipW.x, tipW.y, angle, vel));
   }
 }
 
-// ─── LETTER BURST SYSTEM ─────────────────────────────────────────────────────
+// ─── LETTER CONVEYOR BELT ─────────────────────────────────────────────────────
 
-class LetterBurst {
+class LetterBelt {
   /**
-   * @param {HTMLCanvasElement} canvas
-   * @param {Function} onCorrect  – called when correct key pressed
-   * @param {Function} onWrong    – called when wrong key pressed
+   * Manages the 6-tile DOM conveyor belt in <div id="letter-belt">.
+   * @param {Function} onCorrect(letter) – called on successful match
+   * @param {Function} onWrong(expected, actual) – called on mismatch
    */
-  constructor(canvas, onCorrect, onWrong) {
-    this.canvas    = canvas;
-    this.ctx       = canvas.getContext('2d');
-    this.onCorrect = onCorrect;
-    this.onWrong   = onWrong;
-
-    this._letter  = '';
-    this._visible = false;
-    this._scale   = 1.0;   // used for a tiny pop-in
-    this._popT    = 0;
-
-    this._pool    = 'ASDFJKLQWERTYUIOPZXCVBNM'; // home-row biased
-
-    this._boundKeyDown = this._onKey.bind(this);
-    window.addEventListener('keydown', this._boundKeyDown);
+  constructor(onCorrect, onWrong) {
+    this._belt    = document.getElementById('letter-belt');
+    this._queue   = [];
+    this._active  = false;
+    this._onCB    = onCorrect;
+    this._offCB   = onWrong;
+    this._handler = this._onKey.bind(this);
   }
 
-  destroy() {
-    window.removeEventListener('keydown', this._boundKeyDown);
+  /** Fill belt with BELT_SIZE random letters and start listening. */
+  start() {
+    this._queue = [];
+    this._belt.innerHTML = '';
+    for (let i = 0; i < BELT_SIZE; i++) this._push();
+    this._refreshTiles();
+    this._active = true;
+    window.addEventListener('keydown', this._handler);
   }
 
-  /** Spawn the next letter immediately. */
-  spawn() {
-    this._letter  = this._pool[_rInt(0, this._pool.length - 1)];
-    this._visible = true;
-    this._popT    = 0;
+  stop() {
+    this._active = false;
+    window.removeEventListener('keydown', this._handler);
   }
 
-  update(dt) {
-    if (!this._visible) return;
-    // Pop-in: fast spring (reaches scale 1 in ~100 ms)
-    this._popT = _clamp(this._popT + dt * 18, 0, 1);
-    this._scale = _easeOut(this._popT);
+  _randLetter() {
+    return LETTER_POOL[RI(0, LETTER_POOL.length - 1)];
   }
 
-  draw() {
-    if (!this._visible || this._scale < 0.01) return;
-    const { ctx, canvas } = this;
-    const cx = canvas.width  / 2;
-    const cy = canvas.height / 2;
+  /** Add a letter to the right of the queue (DOM + data). */
+  _push() {
+    const letter = this._randLetter();
+    this._queue.push(letter);
 
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.scale(this._scale, this._scale);
+    const tile = document.createElement('div');
+    tile.className   = 'letter-tile entering';
+    tile.textContent = letter;
+    this._belt.appendChild(tile);
 
-    // Glow halo
-    ctx.shadowColor = '#ff3333';
-    ctx.shadowBlur  = 60;
+    // Remove entering class after animation
+    setTimeout(() => tile.classList.remove('entering'), 140);
+  }
 
-    // Letter
-    ctx.font         = 'bold 160px "Outfit", monospace';
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle    = '#ffffff';
-    ctx.fillText(this._letter, 0, 0);
+  /** Remove the leftmost tile instantly (zero delay). */
+  _shift() {
+    this._queue.shift();
+    const first = this._belt.firstChild;
+    if (first) this._belt.removeChild(first);
+  }
 
-    // Subtle outline
-    ctx.shadowBlur   = 0;
-    ctx.strokeStyle  = 'rgba(255,51,51,0.6)';
-    ctx.lineWidth    = 3;
-    ctx.strokeText(this._letter, 0, 0);
-
-    ctx.restore();
+  /** Mark first tile as active target. */
+  _refreshTiles() {
+    const tiles = this._belt.children;
+    for (let i = 0; i < tiles.length; i++) {
+      tiles[i].classList.remove('active-target', 'correct-flash', 'wrong-flash');
+      if (i === 0) tiles[i].classList.add('active-target');
+    }
   }
 
   _onKey(e) {
-    if (!this._visible) return;
-    if (e.key.length !== 1) return;   // ignore Shift, Enter, etc.
+    if (!this._active || this._queue.length === 0) return;
+    if (e.key.length !== 1) return;   // skip Shift, Enter, etc.
 
-    const pressed = e.key.toUpperCase();
-    this._visible = false;            // remove instantly (no fade)
+    const pressed  = e.key.toUpperCase();
+    const expected = this._queue[0];
+    const tile     = this._belt.firstChild;
 
-    if (pressed === this._letter) {
-      this.onCorrect(this._letter);
+    if (pressed === expected) {
+      // ── CORRECT ──────────────────────────────────────────
+      if (tile) { tile.classList.add('correct-flash'); }
+
+      // Instant remove + inject — zero delay
+      this._shift();
+      this._push();
+      this._refreshTiles();
+
+      this._onCB(expected);
+
     } else {
-      this.onWrong(this._letter, pressed);
+      // ── WRONG ────────────────────────────────────────────
+      if (tile) {
+        tile.classList.add('wrong-flash');
+        setTimeout(() => {
+          tile.classList.remove('wrong-flash');
+        }, 180);
+      }
+      this._offCB(expected, pressed);
     }
   }
-
-  get letter() { return this._letter; }
 }
 
-// ─── DUAL COMBAT SCENE (MASTER ORCHESTRATOR) ─────────────────────────────────
+// ─── DUAL COMBAT SCENE ────────────────────────────────────────────────────────
 
 class DualCombatScene {
-  /**
-   * @param {HTMLCanvasElement} canvas
-   */
+  /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
     this.canvas  = canvas;
     this.ctx     = canvas.getContext('2d');
@@ -914,210 +715,167 @@ class DualCombatScene {
     const W = canvas.width;
     const H = canvas.height;
 
-    // Shared realistic katana asset
+    // ── GROUND_Y ── strict floor baseline
+    this.GROUND_Y = H * 0.75;
+
     const katana = new RealisticWeapon('assets/katana.png', 260, 50);
 
-    // Player 1 – left side, blue-accented
-    this.p1 = new Stickman(
-      W * 0.26, H * 0.72,
-       1,
-      '#1a1a2e',   // dark navy silhouette
-      '#3498db',   // blue accent glow
-      katana
+    // Player 1 — left, dark navy
+    this.p1 = new Stickman(W * 0.26, this.GROUND_Y,  1, '#0d0d1a', '#3daeff', katana);
+    // Player 2 — right, dark crimson
+    this.p2 = new Stickman(W * 0.74, this.GROUND_Y, -1, '#1a0000', '#c0392b', katana);
+
+    // Letter belt
+    this._belt = new LetterBelt(
+      (letter)         => this._onCorrect(letter),
+      (exp, got)       => this._onWrong(exp, got)
     );
 
-    // Player 2 – right side, red-accented (shares same asset instance)
-    this.p2 = new Stickman(
-      W * 0.74, H * 0.72,
-      -1,
-      '#1a0000',   // dark crimson silhouette
-      '#e74c3c',   // red accent glow
-      katana
-    );
-
-    this._floorY = H * 0.78;
-
-    // Letter burst
-    this._burst = new LetterBurst(
-      canvas,
-      (letter) => this._onCorrect(letter),
-      (letter, pressed) => this._onWrong(letter, pressed)
-    );
-
-    // Global VFX
-    this._globalParticles = [];
-
-    // Stats exposed for HUD
-    this.stats = {
-      p1Correct: 0, p1Wrong: 0,
-      p2Correct: 0, p2Wrong: 0,
-      lastMove: '—',
-    };
+    // Public stats
+    this.stats = { hits: 0, misses: 0, lastMove: '—' };
   }
 
   start() {
     this.running = true;
     this._last   = performance.now();
-    this._burst.spawn();
+    this._belt.start();
     requestAnimationFrame(this._loop.bind(this));
   }
 
   stop() {
     this.running = false;
-    this._burst.destroy();
+    this._belt.stop();
+    if (this._raf) cancelAnimationFrame(this._raf);
   }
 
-  // ── Letter burst callbacks ─────────────────────────────────────────────
+  // ── Letter callbacks ───────────────────────────────────────────────────────
 
   _onCorrect(letter) {
+    this.stats.hits++;
     const moveName = this.p1.attack();
-    this.stats.p1Correct++;
     this.stats.lastMove = moveName;
 
-    // Notify game.js for server sync & HUD update
+    // Notify game.js
     if (typeof onLetterCorrect === 'function') onLetterCorrect(moveName);
 
-    // Enemy takes hit after a short delay (travel time illusion)
-    const delay = moveName === 'LungeAttack' ? 120
-                : moveName === 'HeavyDecapitationSwing' ? 380 : 210;
+    // Enemy reacts after travel time
+    const delay = moveName === 'HorizontalLunge' ? 110
+                : moveName === 'DecapitationSwing' ? 370 : 200;
     setTimeout(() => this.p2.takeHit(), delay);
-
-    // Spawn next letter after a brief pause (snappy feel)
-    setTimeout(() => this._burst.spawn(), 310);
   }
 
-  _onWrong(letter, pressed) {
+  _onWrong(expected, got) {
+    this.stats.misses++;
     this.p1.recoil();
-    this.stats.p1Wrong++;
-
-    // Notify game.js for combo reset
     if (typeof onLetterWrong === 'function') onLetterWrong();
-
-    // Spawn next letter quickly
-    setTimeout(() => this._burst.spawn(), 250);
   }
 
-  // ── External API (for multiplayer / server sync) ────────────────────────
+  // ── External API (game.js / server) ───────────────────────────────────────
 
-  /** Called when server says the enemy has attacked */
-  triggerEnemyAttack() {
-    this.p2.attack();
-    setTimeout(() => this.p1.takeHit(), 200);
-  }
+  triggerLocalAttack(wpm, wordLen) { this.p1.attack(); setTimeout(() => this.p2.takeHit(), 200); }
+  triggerEnemyAttack()             { this.p2.attack(); setTimeout(() => this.p1.takeHit(), 200); }
 
   updateHealthBars(myPct, enemyPct) {
-    // DOM bars are still driven by game.js / server state
-    const myEl = document.getElementById('my-health');
-    const enEl = document.getElementById('enemy-health');
-    if (myEl) myEl.style.width = `${Math.max(0, myPct)}%`;
-    if (enEl) enEl.style.width = `${Math.max(0, enemyPct)}%`;
+    const m = document.getElementById('my-health');
+    const e = document.getElementById('enemy-health');
+    if (m) m.style.width = `${Math.max(0, myPct)}%`;
+    if (e) e.style.width = `${Math.max(0, enemyPct)}%`;
   }
 
-  /** game.js compatibility shim — triggers p1 attack */
-  triggerLocalAttack(wpm, wordLength) {
-    this.p1.attack();
-    setTimeout(() => this.p2.takeHit(), 180);
-  }
-
-  // ── Game Loop ──────────────────────────────────────────────────────────
+  // ── Game loop ──────────────────────────────────────────────────────────────
 
   _loop(now) {
     if (!this.running) return;
-    const dt = _clamp((now - this._last) / 1000, 0, 0.05);
+    const dt = C((now - this._last) / 1000, 0, 0.05);
     this._last = now;
 
     this.p1.update(dt);
     this.p2.update(dt);
-    this._burst.update(dt);
-
-    this._globalParticles.forEach(p => p.update());
-    this._globalParticles = this._globalParticles.filter(p => !p.dead);
-
     this._draw();
+
     this._raf = requestAnimationFrame(this._loop.bind(this));
   }
 
   _draw() {
-    const { ctx, canvas } = this;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const { ctx, canvas, GROUND_Y } = this;
+    const W = canvas.width, H = canvas.height;
 
-    // Atmospheric background
-    const bg = ctx.createRadialGradient(
-      canvas.width / 2, canvas.height * 0.5, 40,
-      canvas.width / 2, canvas.height * 0.5, canvas.width * 0.75
-    );
-    bg.addColorStop(0, 'rgba(28, 4, 4, 0.96)');
-    bg.addColorStop(1, 'rgba(4, 0, 0, 0.99)');
+    ctx.clearRect(0, 0, W, H);
+
+    // ── Background ──────────────────────────────────────────────────────────
+    const bg = ctx.createRadialGradient(W/2, H*.55, 30, W/2, H*.55, W*.72);
+    bg.addColorStop(0, '#1c0404');
+    bg.addColorStop(1, '#040000');
     ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, W, H);
 
-    // Floor glow
-    const floorGrad = ctx.createLinearGradient(0, this._floorY - 30, 0, this._floorY + 50);
-    floorGrad.addColorStop(0, 'rgba(255, 51, 51, 0.18)');
-    floorGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
-    ctx.fillStyle = floorGrad;
-    ctx.fillRect(0, this._floorY - 30, canvas.width, 80);
+    // Subtle vignette
+    const vig = ctx.createRadialGradient(W/2, H/2, H*.3, W/2, H/2, W*.7);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, 'rgba(0,0,0,.55)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, W, H);
 
+    // ── Ground floor ────────────────────────────────────────────────────────
+
+    // Below-floor shadow fill
+    const floor = ctx.createLinearGradient(0, GROUND_Y, 0, GROUND_Y + 60);
+    floor.addColorStop(0, 'rgba(192,57,43,.14)');
+    floor.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = floor;
+    ctx.fillRect(0, GROUND_Y, W, 60);
+
+    // Floor glow line
     ctx.save();
-    ctx.strokeStyle = 'rgba(255, 51, 51, 0.45)';
+    ctx.strokeStyle = 'rgba(192,57,43,.55)';
     ctx.lineWidth   = 2;
-    ctx.shadowColor = '#ff3333';
-    ctx.shadowBlur  = 18;
-    ctx.beginPath();
-    ctx.moveTo(0, this._floorY);
-    ctx.lineTo(canvas.width, this._floorY);
-    ctx.stroke();
+    ctx.shadowColor = '#c0392b'; ctx.shadowBlur = 18;
+    ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(W, GROUND_Y); ctx.stroke();
     ctx.restore();
 
-    // Centre dashed divider
+    // Floor grid lines (perspective illusion)
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.strokeStyle = 'rgba(192,57,43,.08)';
     ctx.lineWidth   = 1;
-    ctx.setLineDash([8, 18]);
-    ctx.beginPath();
-    ctx.moveTo(canvas.width / 2, 0);
-    ctx.lineTo(canvas.width / 2, canvas.height);
-    ctx.stroke();
+    for (let gx = 0; gx <= W; gx += 80) {
+      ctx.beginPath(); ctx.moveTo(gx, GROUND_Y); ctx.lineTo(W/2, H + 80); ctx.stroke();
+    }
+    for (let d = 0; d < 5; d++) {
+      const py = GROUND_Y + d * 20;
+      ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke();
+    }
     ctx.restore();
 
-    // Stickmen (drawn in world Z-order: p2 behind, p1 front when facing each other)
+    // Centre dash divider
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.03)';
+    ctx.setLineDash([8, 18]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
+    ctx.restore();
+
+    // ── Stickmen ────────────────────────────────────────────────────────────
     this.p2.draw(ctx);
     this.p1.draw(ctx);
-
-    // Global particles
-    this._globalParticles.forEach(p => p.draw(ctx));
-
-    // Letter burst (drawn last — always on top)
-    this._burst.draw();
   }
 }
 
-// ─── SINGLE-PLAYER COMBAT ENGINE WRAPPER ─────────────────────────────────────
+// ─── COMBAT ENGINE (thin wrapper) ─────────────────────────────────────────────
 
 class CombatEngine {
-  /**
-   * @param {HTMLCanvasElement} canvas
-   * @param {number} playerSide – 1 = local player; used for future multiplayer
-   */
-  constructor(canvas, playerSide = 1) {
+  constructor(canvas) {
     this._scene = new DualCombatScene(canvas);
   }
-
-  start()  { this._scene.start(); }
-  stop()   { this._scene.stop();  }
-
-  get stats() { return this._scene.stats; }
-
-  // Passthrough for game.js compatibility
-  triggerLocalAttack(wpm, wordLength) { this._scene.triggerLocalAttack(wpm, wordLength); }
-  triggerEnemyAttack()                 { this._scene.triggerEnemyAttack(); }
-  updateHealthBars(my, enemy)          { this._scene.updateHealthBars(my, enemy); }
+  start()                        { this._scene.start(); }
+  stop()                         { this._scene.stop();  }
+  get stats()                    { return this._scene.stats; }
+  triggerLocalAttack(wpm, wl)    { this._scene.triggerLocalAttack(wpm, wl); }
+  triggerEnemyAttack()           { this._scene.triggerEnemyAttack(); }
+  updateHealthBars(my, en)       { this._scene.updateHealthBars(my, en); }
 }
 
-// ─── GLOBAL EXPORTS ──────────────────────────────────────────────────────────
-
-window.CombatEngine      = CombatEngine;
-window.DualCombatScene   = DualCombatScene;
-window.Stickman          = Stickman;
-window.RealisticWeapon   = RealisticWeapon;
-window.LetterBurst       = LetterBurst;
+// ─── EXPORTS ──────────────────────────────────────────────────────────────────
+window.CombatEngine    = CombatEngine;
+window.DualCombatScene = DualCombatScene;
+window.Stickman        = Stickman;
+window.RealisticWeapon = RealisticWeapon;
+window.LetterBelt      = LetterBelt;

@@ -69,13 +69,20 @@ function onLetterWrong() {
 const app = {
   init() {
     this.loadSave();
-    
-    // Simulate loading
-    setTimeout(() => {
-      this.changeScene('lobby-screen');
-    }, 1000);
-    
-    // Tick loop for match
+
+    // Animated loading bar then transition to lobby
+    let prog = 0;
+    const bar = document.getElementById('progress-bar');
+    const tick = setInterval(() => {
+      prog = Math.min(prog + Math.random() * 18, 100);
+      if (bar) bar.style.width = prog + '%';
+      if (prog >= 100) {
+        clearInterval(tick);
+        setTimeout(() => this.changeScene('lobby-screen'), 300);
+      }
+    }, 80);
+
+    // Tick loop for match HUD
     setInterval(this.matchTick.bind(this), 500);
   },
 
@@ -131,7 +138,8 @@ const app = {
   findMatch() {
     this.changeScene('waiting-screen');
     document.getElementById('wait-enemy-side').classList.add('hidden');
-    document.querySelector('.center-divider .ticker-text').innerText = "SEARCHING FOR OPPONENT...";
+    const ticker = document.getElementById('match-ticker');
+    if (ticker) ticker.innerText = 'SEARCHING FOR OPPONENT...';
     socket.emit('joinRandom', { avatar: appState.avatar });
   },
 
@@ -141,9 +149,10 @@ const app = {
   },
   
   startCountdown(enemyData) {
-    document.querySelector('.center-divider .ticker-text').innerText = "OPPONENT FOUND!";
+    const ticker = document.getElementById('match-ticker');
+    if (ticker) ticker.innerText = 'OPPONENT FOUND!';
     document.getElementById('wait-enemy-side').classList.remove('hidden');
-    
+
     setTimeout(() => {
       this.changeScene('vs-screen');
       let count = 3;
@@ -180,12 +189,9 @@ const app = {
     combo          = 1;
     isTypingActive = true;
 
-    // Hide old word-display (LetterBurst draws directly on canvas)
-    const typingUI = document.getElementById('word-display');
-    if (typingUI) typingUI.style.display = 'none';
     document.getElementById('combo-count').innerText = '1';
 
-    // Start the high-performance combat renderer (also starts LetterBurst)
+    // Start the high-performance combat renderer (LetterBelt starts inside)
     if (graphics) graphics.start();
   },
 
@@ -209,26 +215,28 @@ const app = {
     appState.match.inMatch = false;
     isTypingActive = false;
     if (graphics) graphics.stop();
-    
-    const isWinner = (winnerNum === 1 && appState.match.isPlayer1) || (winnerNum === 2 && !appState.match.isPlayer1);
-    
+
+    const isWinner = (winnerNum === 1 && appState.match.isPlayer1)
+                  || (winnerNum === 2 && !appState.match.isPlayer1);
+
     this.changeScene('game-over-screen');
-    
-    document.getElementById('result-title').innerText = isWinner ? "VICTORY" : "DEFEAT";
-    document.getElementById('result-title').style.color = isWinner ? "#2ecc71" : "#e74c3c";
-    
-    const finalWpm = calculateWPM();
-    const wordsCount = Math.floor(totalTypedEntries / 5);
-    const acc = totalTypedEntries === 0 ? 100 : Math.round(((totalTypedEntries - errorsInWord) / totalTypedEntries) * 100);
+
+    const titleEl = document.getElementById('result-title');
+    titleEl.innerText = isWinner ? 'VICTORY' : 'DEFEAT';
+    titleEl.style.color = isWinner ? '#2ecc71' : '#e74c3c';
+
+    const finalHps = calculateWPM();
+    const accuracy = totalAttempts === 0 ? '—'
+      : Math.round((totalHits / totalAttempts) * 100) + '%';
     const creditsEarned = isWinner ? 50 : 10;
-    
-    document.getElementById('result-words').innerText = wordsCount;
-    document.getElementById('result-wpm').innerText = finalWpm;
-    document.getElementById('result-accuracy').innerText = `${acc}%`;
-    document.getElementById('result-credits').innerText = creditsEarned;
-    
+
+    document.getElementById('result-words').innerText   = totalHits;
+    document.getElementById('result-wpm').innerText     = `${finalHps} HPS`;
+    document.getElementById('result-accuracy').innerText = accuracy;
+    document.getElementById('result-credits').innerText = `+${creditsEarned}`;
+
     appState.credits += creditsEarned;
-    if (finalWpm > appState.wpmRecord) appState.wpmRecord = finalWpm;
+    if (finalHps > appState.wpmRecord) appState.wpmRecord = finalHps;
     this.saveGame();
   },
   

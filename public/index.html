@@ -3,65 +3,69 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Typing Battle</title>
+  <title>MagStrike — Sword Battle</title>
+  <meta name="description" content="A competitive real-time sword combat typing game. Type fast, strike hard.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- Loading Screen -->
+  <!-- ─── LOADING SCREEN ──────────────────────────────────────── -->
   <div id="loading-screen" class="scene active">
     <div class="loader-content">
-      <h1 class="glitch-text" data-text="CONNECTING...">CONNECTING...</h1>
+      <div class="logo-mark">⚔</div>
+      <h1 class="glitch-text" data-text="MAGSTRIKE">MAGSTRIKE</h1>
+      <p class="loader-sub">INITIALISING COMBAT ENGINE...</p>
       <div class="progress-bar-container">
         <div id="progress-bar" class="progress-bar"></div>
       </div>
     </div>
   </div>
 
-  <!-- Lobby Page -->
+  <!-- ─── LOBBY ───────────────────────────────────────────────── -->
   <div id="lobby-screen" class="scene">
-    <!-- Top Left Profile -->
     <div class="profile-module" onclick="app.openProfile()">
       <div class="avatar-circle">
         <img id="my-avatar" src="assets/avatar_default.png" alt="Avatar">
       </div>
       <div class="profile-info">
-        <div id="my-name" class="player-name">Player</div>
-        <div class="stats-preview">LVL <span id="my-level">1</span> | WPM: <span id="my-wpm">0</span></div>
+        <div id="my-name" class="player-name">WARRIOR</div>
+        <div class="stats-preview">LVL <span id="my-level">1</span> &nbsp;|&nbsp; SPD <span id="my-wpm">0</span></div>
       </div>
     </div>
 
-    <!-- Shop Access -->
-    <button class="shop-btn" onclick="app.openShop()">
-      <span class="icon">🛒</span> ARMORY
-    </button>
+    <button class="shop-btn" onclick="app.openShop()">🛡 ARMORY</button>
 
-    <!-- Bottom Right Play Button -->
+    <div class="lobby-center">
+      <div class="logo-mark large">⚔</div>
+      <h1 class="lobby-title">MAGSTRIKE</h1>
+      <p class="lobby-subtitle">SWORD COMBAT ARENA</p>
+    </div>
+
     <div class="play-container">
       <button id="play-btn" class="huge-play-btn" onclick="app.findMatch()">
-        <span class="glow">BATTLE</span>
+        BATTLE
       </button>
     </div>
   </div>
 
-  <!-- Shop Panel (Modal) -->
+  <!-- ─── SHOP PANEL ──────────────────────────────────────────── -->
   <div id="shop-panel" class="scene hidden-panel">
     <div class="panel-header">
       <h2>THE ARMORY</h2>
-      <button class="close-btn" onclick="app.closeShop()">×</button>
+      <button class="close-btn" onclick="app.closeShop()">✕</button>
     </div>
     <div class="currency-display">CREDITS: <span id="shop-credits">0</span></div>
     <div class="shop-tabs">
-      <button class="tab active" onclick="shop.switchTab('cosmetics')">COSMETICS</button>
-      <button class="tab" onclick="shop.switchTab('upgrades')">UPGRADES</button>
+      <button class="tab active" onclick="shop.switchTab('cosmetics', event)">SKINS</button>
+      <button class="tab"        onclick="shop.switchTab('upgrades', event)">UPGRADES</button>
     </div>
     <div id="shop-grid" class="shop-grid"></div>
   </div>
 
-  <!-- Waiting / Matchmaking Screen -->
+  <!-- ─── MATCHMAKING ─────────────────────────────────────────── -->
   <div id="waiting-screen" class="scene">
     <div class="split-screen">
       <div class="left-side player-side">
@@ -69,7 +73,7 @@
         <h2 id="wait-my-name" class="side-name">YOU</h2>
       </div>
       <div class="center-divider">
-        <div class="ticker-text">SEARCHING FOR OPPONENT...</div>
+        <p class="ticker-text" id="match-ticker">SEARCHING FOR OPPONENT...</p>
         <div class="loader-spinner"></div>
         <button class="cancel-btn" onclick="app.cancelMatch()">ABORT</button>
       </div>
@@ -80,7 +84,7 @@
     </div>
   </div>
 
-  <!-- VS Countdown Screen -->
+  <!-- ─── VS COUNTDOWN ────────────────────────────────────────── -->
   <div id="vs-screen" class="scene">
     <div class="vs-layout">
       <div class="vs-player left">
@@ -98,44 +102,61 @@
     </div>
   </div>
 
-  <!-- Gameplay Arena -->
+  <!-- ─── GAME ARENA ──────────────────────────────────────────── -->
   <div id="game-screen" class="scene">
+
+    <!-- Top HUD bar -->
     <div class="arena-hud">
       <div class="player-hud">
         <div class="hud-name">YOU</div>
-        <div class="health-bar-container"><div id="my-health" class="health-bar fill"></div></div>
-        <div class="hud-stats">WPM: <span id="game-my-wpm">0</span> | DMG: <span id="game-my-dmg">0</span></div>
+        <div class="health-bar-container">
+          <div id="my-health" class="health-bar fill player-bar"></div>
+        </div>
+        <div class="hud-stats">
+          HITS <span id="game-my-wpm">0</span> &nbsp;|&nbsp; DMG <span id="game-my-dmg">0</span>
+        </div>
       </div>
-      <div class="timer" id="game-timer">00:00</div>
+
+      <div class="hud-center-block">
+        <div class="timer" id="game-timer">00:00</div>
+        <div class="combo-display">COMBO ×<span id="combo-count">1</span></div>
+      </div>
+
       <div class="enemy-hud right-align">
         <div class="hud-name" id="game-enemy-name">ENEMY</div>
-        <div class="health-bar-container right"><div id="enemy-health" class="health-bar fill"></div></div>
-        <div class="hud-stats">WPM: <span id="game-enemy-wpm">0</span> | DMG: <span id="game-enemy-dmg">0</span></div>
+        <div class="health-bar-container right">
+          <div id="enemy-health" class="health-bar fill enemy-bar"></div>
+        </div>
+        <div class="hud-stats">
+          HITS <span id="game-enemy-wpm">0</span> &nbsp;|&nbsp; DMG <span id="game-enemy-dmg">0</span>
+        </div>
       </div>
     </div>
-    
-    <div class="canvas-container">
-      <canvas id="gameCanvas" width="1280" height="500"></canvas>
+
+    <!-- Canvas -->
+    <div class="canvas-wrapper">
+      <canvas id="gameCanvas" width="1280" height="520"></canvas>
     </div>
-    
-    <div class="typing-interface">
-      <div class="combo-multiplier">COMBO x<span id="combo-count">1</span></div>
-      <div id="word-display" class="word-display">
-        <span class="typed" id="typed-text"></span><span class="untyped" id="untyped-text">loading...</span>
+
+    <!-- ─── LETTER CONVEYOR BELT ─────────────────────────────── -->
+    <div id="combat-letters-ui" class="combat-letters-ui">
+      <div class="belt-label">STRIKE KEY</div>
+      <div id="letter-belt" class="letter-belt">
+        <!-- 6 letter tiles injected by JS -->
       </div>
-      <!-- Hidden input for mobile / focus -->
-      <input type="text" id="hidden-typing-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus>
+      <div class="belt-hint">Match the first letter → ATTACK</div>
     </div>
+
   </div>
-  
-  <!-- Game Over Screen -->
+
+  <!-- ─── GAME OVER ────────────────────────────────────────────── -->
   <div id="game-over-screen" class="scene">
-    <h1 id="result-title" class="glitch-text">VICTORY</h1>
+    <h1 id="result-title" class="glitch-text result-title">VICTORY</h1>
     <div class="match-stats">
-      <p>Words Typed: <span id="result-words">0</span></p>
-      <p>Final WPM: <span id="result-wpm">0</span></p>
-      <p>Accuracy: <span id="result-accuracy">100%</span></p>
-      <p class="reward">Credits Earned: +<span id="result-credits">0</span></p>
+      <div class="stat-row"><span class="sl">Strikes</span><span class="sv" id="result-words">0</span></div>
+      <div class="stat-row"><span class="sl">Speed</span><span class="sv" id="result-wpm">0 HPS</span></div>
+      <div class="stat-row"><span class="sl">Accuracy</span><span class="sv" id="result-accuracy">—</span></div>
+      <div class="stat-row reward-row"><span class="sl">Credits Earned</span><span class="sv gold" id="result-credits">+0</span></div>
     </div>
     <button class="huge-play-btn" onclick="app.returnToLobby()">BACK TO BASE</button>
   </div>
