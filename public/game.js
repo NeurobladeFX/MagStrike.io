@@ -22,105 +22,48 @@ const appState = {
   }
 };
 
-const WORDS = [
-  "attack", "defend", "strike", "block", "parry", "dodge", "slash", "thrust", 
-  "critical", "damage", "health", "mana", "power", "speed", "agility", "strength",
-  "warrior", "ninja", "samurai", "assassin", "magic", "fireball", "lightning",
-  "shadow", "blade", "sword", "shield", "armor", "helmet", "boots", "gloves",
-  "combat", "battle", "fight", "victory", "defeat", "champion", "legend", "epic",
-  "combo", "ultimate", "special", "heavy", "light", "quick", "fast", "swift"
-];
+// ─── LETTER-BURST COMBAT SYSTEM ──────────────────────────────────────────────
+// Input is now managed entirely by DualCombatScene.LetterBurst internally.
+// game.js only handles damage values, server sync, and UI HUD.
 
-// --- Typing Engine ---
-let currentWord = "";
-let typedPortion = "";
-let untypedPortion = "";
-let combo = 1;
-let totalTypedEntries = 0;
-let errorsInWord = 0;
-let matchStartTime = 0;
-let isTypingActive = false;
+let combo            = 1;
+let totalHits        = 0;   // correct keypresses
+let totalAttempts    = 0;   // total keypresses
+let matchStartTime   = 0;
+let isTypingActive   = false;
 
-function getNewWord() {
-  currentWord = WORDS[Math.floor(Math.random() * WORDS.length)];
-  typedPortion = "";
-  untypedPortion = currentWord;
-  errorsInWord = 0;
-  updateTypingUI();
+function calculateWPM() {
+  if (!matchStartTime) return 0;
+  const minutes = (Date.now() - matchStartTime) / 60000;
+  if (minutes < 0.05) return 0;
+  // In letter-burst mode: each correct hit ≈ 1 "word"
+  return Math.floor(totalHits / Math.max(minutes, 0.01));
 }
 
-function updateTypingUI() {
-  document.getElementById('typed-text').innerText = typedPortion;
-  document.getElementById('untyped-text').innerText = untypedPortion;
+// Called by DualCombatScene when a correct letter is pressed
+function onLetterCorrect(moveName) {
+  totalHits++;
+  totalAttempts++;
+  combo = Math.min(combo + 1, 10);
+  document.getElementById('combo-count').innerText = combo;
+
+  const baseDmg = 10;
+  const damage  = Math.floor(baseDmg * (1 + (combo - 1) * 0.15));
+
+  const currentWpm = calculateWPM();
+  document.getElementById('game-my-wpm').innerText = currentWpm;
+
+  // Sync to server
+  socket.emit('attack', { damage, wpm: currentWpm, move: moveName });
+}
+
+// Called by DualCombatScene when wrong letter is pressed
+function onLetterWrong() {
+  totalAttempts++;
+  combo = 1;
   document.getElementById('combo-count').innerText = combo;
 }
 
-function handleTyping(e) {
-  if (!isTypingActive) return;
-  
-  // Ignore modifier keys
-  if (e.key.length > 1) return;
-
-  const expectedChar = untypedPortion[0];
-  const typedChar = e.key.toLowerCase();
-
-  totalTypedEntries++;
-
-  if (typedChar === expectedChar) {
-    typedPortion += expectedChar;
-    untypedPortion = untypedPortion.substring(1);
-    
-    // Word complete
-    if (untypedPortion.length === 0) {
-      const damage = Math.floor(currentWord.length * (1 + (combo * 0.1)));
-      triggerAttack(damage, currentWord.length);
-      combo = Math.min(combo + 1, 10);
-      getNewWord();
-    }
-    updateTypingUI();
-  } else {
-    // Mistake
-    combo = 1;
-    errorsInWord++;
-    // Flash red
-    document.getElementById('word-display').style.transform = 'translateX(-10px)';
-    setTimeout(() => document.getElementById('word-display').style.transform = 'translateX(10px)', 50);
-    setTimeout(() => document.getElementById('word-display').style.transform = 'translateX(0)', 100);
-    updateTypingUI();
-  }
-}
-
-window.addEventListener('keydown', handleTyping);
-document.getElementById('hidden-typing-input').addEventListener('input', (e) => {
-  // Mobile fallback (simplistic)
-  if (!isTypingActive) return;
-  const val = e.target.value.toLowerCase();
-  e.target.value = ''; // clear
-  if (val.length > 0) {
-    handleTyping({ key: val[val.length-1] });
-  }
-});
-
-function calculateWPM() {
-  if (!isTypingActive || matchStartTime === 0) return 0;
-  const minutes = (Date.now() - matchStartTime) / 60000;
-  if (minutes < 0.05) return 0; // wait a bit
-  // Standard WPM: (characters / 5) / minutes
-  const wpm = Math.floor((totalTypedEntries / 5) / minutes);
-  return Math.max(0, wpm);
-}
-
-function triggerAttack(damage, wordLength) {
-  // Fire the high-fidelity combat animation
-  const currentWpm = calculateWPM();
-  if (graphics) graphics.triggerLocalAttack(currentWpm, wordLength);
-  
-  // Send to server
-  socket.emit('attack', { damage, wpm: currentWpm });
-  
-  // Update HUD WPM
-  document.getElementById('game-my-wpm').innerText = currentWpm;
-}
 
 // --- App Flow / Scene Management ---
 const app = {
@@ -232,14 +175,17 @@ const app = {
     document.getElementById('enemy-health').style.width = '100%';
     
     matchStartTime = Date.now();
-    totalTypedEntries = 0;
-    combo = 1;
+    totalHits      = 0;
+    totalAttempts  = 0;
+    combo          = 1;
     isTypingActive = true;
-    
-    getNewWord();
-    document.getElementById('hidden-typing-input').focus();
-    
-    // Start the high-performance combat renderer
+
+    // Hide old word-display (LetterBurst draws directly on canvas)
+    const typingUI = document.getElementById('word-display');
+    if (typingUI) typingUI.style.display = 'none';
+    document.getElementById('combo-count').innerText = '1';
+
+    // Start the high-performance combat renderer (also starts LetterBurst)
     if (graphics) graphics.start();
   },
 
