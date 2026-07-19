@@ -3,140 +3,145 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wacky Woods</title>
+  <title>Typing Battle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- Game Canvas -->
-  <div class="game-wrapper" id="game-wrapper">
-    <canvas id="gameCanvas" width="800" height="800"></canvas>
-    
-      <!-- Global HUD (Top Left & Top Right) -->
-      <div id="global-hud">
-        <button class="profile-corner-btn" onclick="changeScene('PROFILE')" title="View Profile">
-          <div class="profile-icon">👤</div>
-          <span>PROFILE</span>
-        </button>
-        <div id="currency-hud" class="currency-badge">
-          ACORNS: <span id="coin-count">0</span>
-        </div>
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="scene active">
+    <div class="loader-content">
+      <h1 class="glitch-text" data-text="CONNECTING...">CONNECTING...</h1>
+      <div class="progress-bar-container">
+        <div id="progress-bar" class="progress-bar"></div>
       </div>
-
-      <!-- Main Menu Scene -->
-      <div id="main-menu" class="scene active menu-transparent">
-        <div class="menu-center-wrapper">
-          <h1 class="game-logo">WACKY<br>WOODS</h1>
-          
-          <button class="menu-btn giant-play-btn" id="play-online-btn">
-            <span class="btn-title" style="font-size: 42px; color: #d35400;">PLAY NOW!</span>
-            <span class="btn-desc" style="color: #e17055; font-size: 18px;">Find Random Animals</span>
-          </button>
-          
-          <div class="menu-row">
-            <button class="menu-btn side-btn" id="play-friend-btn">CREATE FOREST</button>
-            <div class="join-room-box">
-              <input type="text" id="room-code-input" placeholder="CODE" maxlength="6">
-              <button class="menu-btn join-btn" id="join-room-btn">JOIN</button>
-            </div>
-          </div>
-
-          <div class="menu-row bottom-row">
-            <button class="menu-btn icon-btn" onclick="changeScene('SHOP')">🛒 SHOP</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Shop Scene -->
-      <div id="shop" class="scene">
-        <h2 class="scene-title">WACKY SHOP</h2>
-        <div class="shop-grid" id="shop-grid">
-          <!-- JS injects items here -->
-        </div>
-        <button class="btn secondary-btn" onclick="changeScene('MAIN_MENU')" style="margin-top: 30px;">BACK TO WOODS</button>
-      </div>
-
-      <!-- Profile Scene -->
-      <div id="profile" class="scene">
-        <h2 class="scene-title">ANIMAL PROFILE</h2>
-        
-        <div class="profile-editor">
-          <div class="avatar-editor">
-            <div id="avatar-frame-container" class="avatar-frame-default">
-              <img id="profile-avatar-preview" src="" alt="Avatar">
-            </div>
-            <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
-            <button class="btn primary-btn" onclick="document.getElementById('avatar-upload').click()">UPLOAD IMAGE</button>
-          </div>
-          
-          <div class="profile-stats-grid">
-            <div class="stat-box">
-              <div class="stat-label">TOTAL RUNS</div>
-              <div class="stat-value" id="stat-matches">0</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">FIRST PLACES</div>
-              <div class="stat-value" id="stat-wins">0</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">WIN RATE</div>
-              <div class="stat-value" id="stat-winrate">0%</div>
-            </div>
-          </div>
-        </div>
-        
-        <button class="btn secondary-btn" onclick="changeScene('MAIN_MENU')">BACK TO WOODS</button>
-      </div>
-
-      <!-- Waiting Lobby / VS Scene -->
-      <div id="waiting-lobby" class="scene menu-transparent">
-        <h2 class="scene-title" id="waiting-title">FINDING A CLEARING</h2>
-        
-        <div class="vs-container">
-          <div class="vs-player">
-            <img id="my-vs-avatar" src="assets/avatar_default.png" alt="Me" class="vs-avatar">
-            <div class="vs-name" id="my-vs-name">YOU</div>
-          </div>
-          
-          <div class="vs-center">
-            <div class="loader-ring" id="vs-loader"></div>
-            <div class="vs-text hidden" id="vs-text" style="font-size: 64px; font-weight: 900; color: #ff7675; text-shadow: 4px 4px 0 #d63031;">VS</div>
-          </div>
-          
-          <div class="vs-player">
-            <img id="enemy-vs-avatar" src="assets/avatar_default.png" alt="Enemy" class="vs-avatar" style="opacity: 0.3; filter: grayscale(1);">
-            <div class="vs-name" id="enemy-vs-name">SEARCHING...</div>
-          </div>
-        </div>
-        
-        <div id="waiting-text" class="status-text" style="margin-top: 20px;">LOOKING FOR ANIMALS...</div>
-        <button class="btn secondary-btn" id="cancel-match-btn" style="margin-top: 30px;">CANCEL</button>
-      </div>
-
-      <!-- Game Over Scene -->
-      <div id="game-over" class="scene">
-        <h1 class="scene-title" id="winner-text">RACE OVER!</h1>
-        <h2 id="reward-text" style="color: #00b894; margin-bottom: 30px; font-size: 32px; font-weight: 900;"></h2>
-        <button class="btn primary-btn" id="return-menu-btn">BACK TO WOODS</button>
-      </div>
-      
-      <!-- In-Game HUD -->
-      <div id="in-game-hud" class="hidden">
-        <div class="hud-top">
-          <div class="hud-player" id="hud-p1">
-            <span class="hud-name">PIG (P1)</span>
-          </div>
-          <div class="hud-status" id="shift-timer">DIZZY IN: 5.0</div>
-          <div class="hud-player" id="hud-p2">
-            <span class="hud-name">CHICKEN (P2)</span>
-          </div>
-        </div>
-      </div>
-
     </div>
   </div>
 
+  <!-- Lobby Page -->
+  <div id="lobby-screen" class="scene">
+    <!-- Top Left Profile -->
+    <div class="profile-module" onclick="app.openProfile()">
+      <div class="avatar-circle">
+        <img id="my-avatar" src="assets/avatar_default.png" alt="Avatar">
+      </div>
+      <div class="profile-info">
+        <div id="my-name" class="player-name">Player</div>
+        <div class="stats-preview">LVL <span id="my-level">1</span> | WPM: <span id="my-wpm">0</span></div>
+      </div>
+    </div>
+
+    <!-- Shop Access -->
+    <button class="shop-btn" onclick="app.openShop()">
+      <span class="icon">🛒</span> ARMORY
+    </button>
+
+    <!-- Bottom Right Play Button -->
+    <div class="play-container">
+      <button id="play-btn" class="huge-play-btn" onclick="app.findMatch()">
+        <span class="glow">BATTLE</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Shop Panel (Modal) -->
+  <div id="shop-panel" class="scene hidden-panel">
+    <div class="panel-header">
+      <h2>THE ARMORY</h2>
+      <button class="close-btn" onclick="app.closeShop()">×</button>
+    </div>
+    <div class="currency-display">CREDITS: <span id="shop-credits">0</span></div>
+    <div class="shop-tabs">
+      <button class="tab active" onclick="shop.switchTab('cosmetics')">COSMETICS</button>
+      <button class="tab" onclick="shop.switchTab('upgrades')">UPGRADES</button>
+    </div>
+    <div id="shop-grid" class="shop-grid"></div>
+  </div>
+
+  <!-- Waiting / Matchmaking Screen -->
+  <div id="waiting-screen" class="scene">
+    <div class="split-screen">
+      <div class="left-side player-side">
+        <img id="wait-my-avatar" class="big-avatar" src="assets/avatar_default.png" alt="Me">
+        <h2 id="wait-my-name" class="side-name">YOU</h2>
+      </div>
+      <div class="center-divider">
+        <div class="ticker-text">SEARCHING FOR OPPONENT...</div>
+        <div class="loader-spinner"></div>
+        <button class="cancel-btn" onclick="app.cancelMatch()">ABORT</button>
+      </div>
+      <div class="right-side enemy-side hidden" id="wait-enemy-side">
+        <img id="wait-enemy-avatar" class="big-avatar" src="assets/avatar_default.png" alt="Enemy">
+        <h2 id="wait-enemy-name" class="side-name">???</h2>
+      </div>
+    </div>
+  </div>
+
+  <!-- VS Countdown Screen -->
+  <div id="vs-screen" class="scene">
+    <div class="vs-layout">
+      <div class="vs-player left">
+        <img id="vs-my-avatar" src="assets/avatar_default.png" class="vs-avatar">
+        <div class="vs-name">YOU</div>
+      </div>
+      <div class="vs-center">
+        <div class="vs-text">VS</div>
+        <div id="vs-countdown" class="countdown">3</div>
+      </div>
+      <div class="vs-player right">
+        <img id="vs-enemy-avatar" src="assets/avatar_default.png" class="vs-avatar">
+        <div id="vs-enemy-name" class="vs-name">ENEMY</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gameplay Arena -->
+  <div id="game-screen" class="scene">
+    <div class="arena-hud">
+      <div class="player-hud">
+        <div class="hud-name">YOU</div>
+        <div class="health-bar-container"><div id="my-health" class="health-bar fill"></div></div>
+        <div class="hud-stats">WPM: <span id="game-my-wpm">0</span> | DMG: <span id="game-my-dmg">0</span></div>
+      </div>
+      <div class="timer" id="game-timer">00:00</div>
+      <div class="enemy-hud right-align">
+        <div class="hud-name" id="game-enemy-name">ENEMY</div>
+        <div class="health-bar-container right"><div id="enemy-health" class="health-bar fill"></div></div>
+        <div class="hud-stats">WPM: <span id="game-enemy-wpm">0</span> | DMG: <span id="game-enemy-dmg">0</span></div>
+      </div>
+    </div>
+    
+    <div class="canvas-container">
+      <canvas id="gameCanvas" width="1280" height="500"></canvas>
+    </div>
+    
+    <div class="typing-interface">
+      <div class="combo-multiplier">COMBO x<span id="combo-count">1</span></div>
+      <div id="word-display" class="word-display">
+        <span class="typed" id="typed-text"></span><span class="untyped" id="untyped-text">loading...</span>
+      </div>
+      <!-- Hidden input for mobile / focus -->
+      <input type="text" id="hidden-typing-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus>
+    </div>
+  </div>
+  
+  <!-- Game Over Screen -->
+  <div id="game-over-screen" class="scene">
+    <h1 id="result-title" class="glitch-text">VICTORY</h1>
+    <div class="match-stats">
+      <p>Words Typed: <span id="result-words">0</span></p>
+      <p>Final WPM: <span id="result-wpm">0</span></p>
+      <p>Accuracy: <span id="result-accuracy">100%</span></p>
+      <p class="reward">Credits Earned: +<span id="result-credits">0</span></p>
+    </div>
+    <button class="huge-play-btn" onclick="app.returnToLobby()">BACK TO BASE</button>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
+  <script src="shop.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

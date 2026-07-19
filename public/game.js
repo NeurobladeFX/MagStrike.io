@@ -1,412 +1,487 @@
-const socket = io();
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+const RENDER_SERVER_URL = window.location.origin; // Set this if hosting frontend separate from backend
+const socket = io(RENDER_SERVER_URL);
 
-let gameState = 'MAIN_MENU';
-let myPlayerNum = 0;
-let roomCode = '';
-let serverState = null;
-
-// --- Input Handling ---
-const keys = {};
-window.addEventListener('keydown', e => keys[e.key] = true);
-window.addEventListener('keyup', e => keys[e.key] = false);
-
-setInterval(() => {
-  if (gameState === 'GAMEPLAY') {
-    socket.emit('input', keys);
+// --- State ---
+const appState = {
+  scene: 'LOADING',
+  credits: 0,
+  level: 1,
+  avatar: 'hero_pig',
+  wpmRecord: 0,
+  match: {
+    inMatch: false,
+    timer: 0,
+    startTime: 0,
+    myHealth: 100,
+    enemyHealth: 100,
+    myDmg: 0,
+    enemyDmg: 0,
+    myWpm: 0,
+    enemyWpm: 0,
+    isPlayer1: true
   }
-}, 1000 / 60);
-
-// --- Local Save Data ---
-let saveData = {
-  matches: 0,
-  wins: 0,
-  coins: 0,
-  ownedItems: ['hero_pig'], // Everyone starts with Pig
-  equippedHero: 'hero_pig',
-  profileImage: ''
 };
 
-function loadSave() {
-  const data = localStorage.getItem('shadow_grid_save');
-  if (data) {
-    try {
-      saveData = { ...saveData, ...JSON.parse(data) };
-      // Ensure they have Pig
-      if (!saveData.ownedItems) saveData.ownedItems = ['hero_pig'];
-      if (!saveData.ownedItems.includes('hero_pig')) saveData.ownedItems.push('hero_pig');
-      if (!saveData.equippedHero) saveData.equippedHero = 'hero_pig';
-    } catch (e) { console.error("Corrupt save"); }
-  }
-  updateUI();
-}
-
-function saveGame() {
-  localStorage.setItem('shadow_grid_save', JSON.stringify(saveData));
-  updateUI();
-}
-
-function updateUI() {
-  document.getElementById('coin-count').innerText = saveData.coins;
-  document.getElementById('stat-matches').innerText = saveData.matches;
-  document.getElementById('stat-wins').innerText = saveData.wins;
-  
-  const winrate = saveData.matches > 0 ? Math.round((saveData.wins / saveData.matches) * 100) : 0;
-  document.getElementById('stat-winrate').innerText = winrate + '%';
-  
-  // Set Profile Image to equipped hero
-  document.getElementById('profile-avatar-preview').src = `assets/${saveData.equippedHero}.png`;
-}
-
-// --- Scene Management ---
-function changeScene(sceneId) {
-  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
-  document.getElementById('in-game-hud').classList.add('hidden');
-  
-  // Show/Hide Global HUD based on Gameplay
-  if (sceneId === 'GAMEPLAY') {
-    document.getElementById('global-hud').classList.add('hidden');
-    document.getElementById('in-game-hud').classList.remove('hidden');
-    gameState = 'GAMEPLAY';
-  } else {
-    document.getElementById('global-hud').classList.remove('hidden');
-    document.getElementById(sceneId.toLowerCase().replace('_', '-')).classList.add('active');
-    gameState = sceneId;
-    if (sceneId === 'SHOP') renderShop();
-  }
-}
-
-// --- Profile Upload ---
-document.getElementById('avatar-upload').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      saveData.profileImage = event.target.result;
-      saveGame();
-      document.getElementById('profile-avatar-preview').src = saveData.profileImage;
-    };
-    reader.readAsDataURL(file);
-  }
-});
-
-// --- Shop Logic ---
-const SHOP_ITEMS = [
-  { id: 'hero_chicken', name: 'Yellow Chicken', type: 'hero', price: 100 },
-  { id: 'hero_bear', name: 'Brown Bear', type: 'hero', price: 150 },
-  { id: 'hero_frog', name: 'Green Frog', type: 'hero', price: 200 },
-  { id: 'hero_cat', name: 'Orange Cat', type: 'hero', price: 250 },
-  { id: 'hero_dog', name: 'Blue Dog', type: 'hero', price: 300 }
+const WORDS = [
+  "attack", "defend", "strike", "block", "parry", "dodge", "slash", "thrust", 
+  "critical", "damage", "health", "mana", "power", "speed", "agility", "strength",
+  "warrior", "ninja", "samurai", "assassin", "magic", "fireball", "lightning",
+  "shadow", "blade", "sword", "shield", "armor", "helmet", "boots", "gloves",
+  "combat", "battle", "fight", "victory", "defeat", "champion", "legend", "epic",
+  "combo", "ultimate", "special", "heavy", "light", "quick", "fast", "swift"
 ];
 
-function renderShop() {
-  const grid = document.getElementById('shop-grid');
-  grid.innerHTML = '';
+// --- Typing Engine ---
+let currentWord = "";
+let typedPortion = "";
+let untypedPortion = "";
+let combo = 1;
+let totalTypedEntries = 0;
+let errorsInWord = 0;
+let matchStartTime = 0;
+let isTypingActive = false;
+
+function getNewWord() {
+  currentWord = WORDS[Math.floor(Math.random() * WORDS.length)];
+  typedPortion = "";
+  untypedPortion = currentWord;
+  errorsInWord = 0;
+  updateTypingUI();
+}
+
+function updateTypingUI() {
+  document.getElementById('typed-text').innerText = typedPortion;
+  document.getElementById('untyped-text').innerText = untypedPortion;
+  document.getElementById('combo-count').innerText = combo;
+}
+
+function handleTyping(e) {
+  if (!isTypingActive) return;
   
-  SHOP_ITEMS.forEach(item => {
-    const isOwned = saveData.ownedItems.includes(item.id);
-    let isEquipped = (saveData.equippedHero === item.id);
+  // Ignore modifier keys
+  if (e.key.length > 1) return;
+
+  const expectedChar = untypedPortion[0];
+  const typedChar = e.key.toLowerCase();
+
+  totalTypedEntries++;
+
+  if (typedChar === expectedChar) {
+    typedPortion += expectedChar;
+    untypedPortion = untypedPortion.substring(1);
     
-    const div = document.createElement('div');
-    div.className = 'shop-item';
-    
-    let btnHtml = '';
-    if (isEquipped) {
-      btnHtml = `<button class="btn btn-equipped" disabled>EQUIPPED</button>`;
-    } else if (isOwned) {
-      btnHtml = `<button class="btn btn-equip" onclick="equipItem('${item.id}', '${item.type}')">EQUIP</button>`;
-    } else {
-      btnHtml = `<button class="btn primary-btn" onclick="buyItem('${item.id}', ${item.price})">BUY ${item.price}</button>`;
+    // Word complete
+    if (untypedPortion.length === 0) {
+      const damage = Math.floor(currentWord.length * (1 + (combo * 0.1)));
+      triggerAttack(damage);
+      combo = Math.min(combo + 1, 10);
+      getNewWord();
     }
-    
-    div.innerHTML = `
-      <img src="assets/${item.id}.png" style="width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff; margin-bottom: 10px;">
-      <div class="item-name">${item.name}</div>
-      <div class="item-price">${isOwned ? 'OWNED' : `ACORNS: ${item.price}`}</div>
-      ${btnHtml}
-    `;
-    grid.appendChild(div);
-  });
-}
-
-window.buyItem = function(id, price) {
-  if (saveData.coins >= price) {
-    saveData.coins -= price;
-    saveData.ownedItems.push(id);
-    saveGame();
-    renderShop();
-  }
-}
-
-window.equipItem = function(id, type) {
-  if (type === 'hero') saveData.equippedHero = id;
-  saveGame();
-  renderShop();
-}
-
-// --- Image Preloading ---
-const IMAGES = {};
-['hero_pig', 'hero_chicken', 'hero_bear', 'hero_frog', 'hero_cat', 'hero_dog'].forEach(name => {
-  const img = new Image();
-  img.src = `assets/${name}.png`;
-  IMAGES[name] = img;
-});
-
-// --- Networking ---
-function showWaitingScreen(title, status) {
-  document.getElementById('waiting-title').innerText = title;
-  document.getElementById('waiting-text').innerText = status;
-  
-  // Reset VS screen
-  document.getElementById('vs-loader').classList.remove('hidden');
-  document.getElementById('vs-text').classList.add('hidden');
-  document.getElementById('enemy-vs-avatar').src = 'assets/avatar_default.png';
-  document.getElementById('enemy-vs-avatar').style.opacity = '0.3';
-  document.getElementById('enemy-vs-avatar').style.filter = 'grayscale(1)';
-  document.getElementById('enemy-vs-name').innerText = 'SEARCHING...';
-  
-  // Set my avatar
-  document.getElementById('my-vs-avatar').src = `assets/${saveData.equippedHero}.png`;
-  document.getElementById('my-vs-name').innerText = "YOU";
-  
-  changeScene('WAITING_LOBBY');
-}
-
-document.getElementById('play-online-btn').addEventListener('click', () => {
-  socket.emit('joinRandom', { hero: saveData.equippedHero });
-  showWaitingScreen("FINDING A CLEARING", "SEARCHING THE WOODS...");
-});
-
-document.getElementById('play-friend-btn').addEventListener('click', () => {
-  socket.emit('createRoom', { hero: saveData.equippedHero });
-  showWaitingScreen("BUILDING A CLEARING", "WAITING FOR FRIEND...");
-});
-
-document.getElementById('join-room-btn').addEventListener('click', () => {
-  const code = document.getElementById('room-code-input').value.trim();
-  if (code) {
-    socket.emit('joinRoom', { code, hero: saveData.equippedHero });
-    showWaitingScreen("RUNNING TO WOODS", "CONNECTING...");
-  }
-});
-
-document.getElementById('cancel-match-btn').addEventListener('click', () => {
-  socket.emit('leaveQueue');
-  changeScene('MAIN_MENU');
-});
-
-document.getElementById('return-menu-btn').addEventListener('click', () => {
-  changeScene('MAIN_MENU');
-});
-
-socket.on('roomCreated', (code) => {
-  document.getElementById('waiting-text').innerText = `FOREST READY.\nFRIEND CODE: ${code}\nWAITING FOR ANIMAL...`;
-});
-
-socket.on('roomError', (msg) => {
-  document.getElementById('waiting-text').innerText = `UH OH: ${msg}`;
-  setTimeout(() => changeScene('MAIN_MENU'), 2000);
-});
-
-let myHeroId = 'hero_pig';
-let enemyHeroId = 'hero_chicken';
-
-socket.on('matchStarted', (data) => {
-  myPlayerNum = data.playerNum;
-  roomCode = data.roomId;
-  myHeroId = saveData.equippedHero;
-  enemyHeroId = data.enemyHero || 'hero_pig';
-  
-  saveData.matches++;
-  saveGame();
-  
-  document.getElementById('hud-p1').style.borderColor = myPlayerNum === 1 ? '#0984e3' : '#dfe6e9';
-  document.getElementById('hud-p2').style.borderColor = myPlayerNum === 2 ? '#d63031' : '#dfe6e9';
-  
-  // Dramatic VS Screen Reveal!
-  document.getElementById('vs-loader').classList.add('hidden');
-  document.getElementById('vs-text').classList.remove('hidden');
-  document.getElementById('waiting-text').innerText = "MATCH FOUND!";
-  
-  const enemyAvatar = document.getElementById('enemy-vs-avatar');
-  enemyAvatar.style.opacity = '1';
-  enemyAvatar.style.filter = 'grayscale(0)';
-  enemyAvatar.src = `assets/${enemyHeroId}.png`;
-  
-  if (myPlayerNum === 1) {
-    document.getElementById('my-vs-name').innerText = "P1 (YOU)";
-    document.getElementById('enemy-vs-name').innerText = "P2";
+    updateTypingUI();
   } else {
-    document.getElementById('my-vs-name').innerText = "P2 (YOU)";
-    document.getElementById('enemy-vs-name').innerText = "P1";
+    // Mistake
+    combo = 1;
+    errorsInWord++;
+    // Flash red
+    document.getElementById('word-display').style.transform = 'translateX(-10px)';
+    setTimeout(() => document.getElementById('word-display').style.transform = 'translateX(10px)', 50);
+    setTimeout(() => document.getElementById('word-display').style.transform = 'translateX(0)', 100);
+    updateTypingUI();
   }
-  
-  setTimeout(() => {
-    changeScene('GAMEPLAY');
-  }, 2500);
+}
+
+window.addEventListener('keydown', handleTyping);
+document.getElementById('hidden-typing-input').addEventListener('input', (e) => {
+  // Mobile fallback (simplistic)
+  if (!isTypingActive) return;
+  const val = e.target.value.toLowerCase();
+  e.target.value = ''; // clear
+  if (val.length > 0) {
+    handleTyping({ key: val[val.length-1] });
+  }
 });
 
-// Screen shake logic
-let screenShake = 0;
-socket.on('shiftPulse', () => {
-  screenShake = 15;
-  document.body.style.backgroundColor = '#55efc4';
-  setTimeout(() => document.body.style.backgroundColor = 'var(--bg-color)', 100);
+function calculateWPM() {
+  if (!isTypingActive || matchStartTime === 0) return 0;
+  const minutes = (Date.now() - matchStartTime) / 60000;
+  if (minutes < 0.05) return 0; // wait a bit
+  // Standard WPM: (characters / 5) / minutes
+  const wpm = Math.floor((totalTypedEntries / 5) / minutes);
+  return Math.max(0, wpm);
+}
+
+function triggerAttack(damage) {
+  // Local visual trigger
+  graphics.triggerLocalAttack();
+  
+  // Send to server
+  const currentWpm = calculateWPM();
+  socket.emit('attack', { damage, wpm: currentWpm });
+  
+  // Update HUD WPM
+  document.getElementById('game-my-wpm').innerText = currentWpm;
+}
+
+// --- App Flow / Scene Management ---
+const app = {
+  init() {
+    this.loadSave();
+    
+    // Simulate loading
+    setTimeout(() => {
+      this.changeScene('lobby-screen');
+    }, 1000);
+    
+    // Tick loop for match
+    setInterval(this.matchTick.bind(this), 500);
+  },
+
+  loadSave() {
+    const data = localStorage.getItem('typing_battle_save');
+    if (data) {
+      try {
+        const parsed = JSON.parse(data);
+        appState.credits = parsed.credits || 0;
+        appState.level = parsed.level || 1;
+        appState.wpmRecord = parsed.wpmRecord || 0;
+        appState.avatar = parsed.avatar || 'hero_pig';
+      } catch (e) { console.error('Save corrupt'); }
+    }
+    this.updateGlobalUI();
+  },
+
+  saveGame() {
+    localStorage.setItem('typing_battle_save', JSON.stringify({
+      credits: appState.credits,
+      level: appState.level,
+      wpmRecord: appState.wpmRecord,
+      avatar: appState.avatar
+    }));
+    this.updateGlobalUI();
+  },
+
+  updateGlobalUI() {
+    document.getElementById('my-level').innerText = appState.level;
+    document.getElementById('my-wpm').innerText = appState.wpmRecord;
+    document.getElementById('shop-credits').innerText = appState.credits;
+  },
+
+  changeScene(sceneId) {
+    document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+    document.getElementById(sceneId).classList.add('active');
+    appState.scene = sceneId;
+  },
+
+  openProfile() {
+    // simple alert for now
+    alert(`WPM Record: ${appState.wpmRecord}\nCredits: ${appState.credits}`);
+  },
+
+  openShop() {
+    document.getElementById('shop-panel').classList.add('active');
+  },
+  
+  closeShop() {
+    document.getElementById('shop-panel').classList.remove('active');
+  },
+
+  findMatch() {
+    this.changeScene('waiting-screen');
+    document.getElementById('wait-enemy-side').classList.add('hidden');
+    document.querySelector('.center-divider .ticker-text').innerText = "SEARCHING FOR OPPONENT...";
+    socket.emit('joinRandom', { avatar: appState.avatar });
+  },
+
+  cancelMatch() {
+    socket.emit('leaveQueue');
+    this.changeScene('lobby-screen');
+  },
+  
+  startCountdown(enemyData) {
+    document.querySelector('.center-divider .ticker-text').innerText = "OPPONENT FOUND!";
+    document.getElementById('wait-enemy-side').classList.remove('hidden');
+    
+    setTimeout(() => {
+      this.changeScene('vs-screen');
+      let count = 3;
+      const cdEl = document.getElementById('vs-countdown');
+      cdEl.innerText = count;
+      
+      const ival = setInterval(() => {
+        count--;
+        if (count > 0) {
+          cdEl.innerText = count;
+        } else {
+          clearInterval(ival);
+          this.startGameplay();
+        }
+      }, 1000);
+    }, 1500);
+  },
+
+  startGameplay() {
+    this.changeScene('game-screen');
+    
+    appState.match.inMatch = true;
+    appState.match.myHealth = 100;
+    appState.match.enemyHealth = 100;
+    appState.match.myDmg = 0;
+    appState.match.enemyDmg = 0;
+    
+    document.getElementById('my-health').style.width = '100%';
+    document.getElementById('enemy-health').style.width = '100%';
+    
+    matchStartTime = Date.now();
+    totalTypedEntries = 0;
+    combo = 1;
+    isTypingActive = true;
+    
+    getNewWord();
+    document.getElementById('hidden-typing-input').focus();
+    
+    // Start graphics loop
+    graphics.start();
+  },
+
+  matchTick() {
+    if (!appState.match.inMatch) return;
+    
+    // Update local timer
+    const seconds = Math.floor((Date.now() - matchStartTime) / 1000);
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    document.getElementById('game-timer').innerText = `${m}:${s}`;
+    
+    // Update WPM local calculation strictly for UI smoothness
+    if (isTypingActive) {
+      const wpm = calculateWPM();
+      document.getElementById('game-my-wpm').innerText = wpm;
+    }
+  },
+
+  endGame(winnerNum) {
+    appState.match.inMatch = false;
+    isTypingActive = false;
+    graphics.stop();
+    
+    const isWinner = (winnerNum === 1 && appState.match.isPlayer1) || (winnerNum === 2 && !appState.match.isPlayer1);
+    
+    this.changeScene('game-over-screen');
+    
+    document.getElementById('result-title').innerText = isWinner ? "VICTORY" : "DEFEAT";
+    document.getElementById('result-title').style.color = isWinner ? "#2ecc71" : "#e74c3c";
+    
+    const finalWpm = calculateWPM();
+    const wordsCount = Math.floor(totalTypedEntries / 5);
+    const acc = totalTypedEntries === 0 ? 100 : Math.round(((totalTypedEntries - errorsInWord) / totalTypedEntries) * 100);
+    const creditsEarned = isWinner ? 50 : 10;
+    
+    document.getElementById('result-words').innerText = wordsCount;
+    document.getElementById('result-wpm').innerText = finalWpm;
+    document.getElementById('result-accuracy').innerText = `${acc}%`;
+    document.getElementById('result-credits').innerText = creditsEarned;
+    
+    appState.credits += creditsEarned;
+    if (finalWpm > appState.wpmRecord) appState.wpmRecord = finalWpm;
+    this.saveGame();
+  },
+  
+  returnToLobby() {
+    this.changeScene('lobby-screen');
+  }
+};
+
+// --- Networking (Socket) ---
+socket.on('matchStarted', (data) => {
+  // data: { roomId, playerNum, enemyAvatar }
+  appState.match.isPlayer1 = (data.playerNum === 1);
+  app.startCountdown();
 });
 
 socket.on('gameState', (state) => {
-  serverState = state;
+  if (!appState.match.inMatch) return;
   
-  const timer = document.getElementById('shift-timer');
-  timer.innerText = `DIZZY IN: ${state.timer.toFixed(1)}`;
+  // server sends { p1: { health, dmg, wpm, isAttacking }, p2: { health, dmg, wpm, isAttacking } }
+  const myState = appState.match.isPlayer1 ? state.p1 : state.p2;
+  const enemyState = appState.match.isPlayer1 ? state.p2 : state.p1;
   
-  if (state.timer < 1.5) {
-    timer.style.color = '#d63031';
-    timer.style.borderColor = '#d63031';
-    timer.style.transform = `scale(${1 + Math.random()*0.1})`;
-  } else {
-    timer.style.color = '#d35400';
-    timer.style.borderColor = '#fdcb6e';
-    timer.style.transform = 'scale(1)';
+  // Health
+  appState.match.myHealth = myState.health;
+  appState.match.enemyHealth = enemyState.health;
+  
+  document.getElementById('my-health').style.width = `${Math.max(0, myState.health)}%`;
+  document.getElementById('enemy-health').style.width = `${Math.max(0, enemyState.health)}%`;
+  
+  // Check enemy attacks for animation
+  if (enemyState.isAttacking) {
+    graphics.triggerEnemyAttack();
   }
   
-  const myInverted = state.invertedPlayer === myPlayerNum;
-  if (myInverted) {
-    document.getElementById(`hud-p${myPlayerNum}`).style.color = '#d63031';
-    document.getElementById(`hud-p${myPlayerNum}`).innerText = myPlayerNum === 1 ? 'P1 [DIZZY!]' : 'P2 [DIZZY!]';
-  } else {
-    document.getElementById(`hud-p${myPlayerNum}`).style.color = myPlayerNum === 1 ? '#0984e3' : '#d63031';
-    document.getElementById(`hud-p${myPlayerNum}`).innerText = myPlayerNum === 1 ? 'P1 [READY]' : 'P2 [READY]';
-  }
+  // Stats
+  document.getElementById('game-my-dmg').innerText = myState.dmg;
+  document.getElementById('game-enemy-dmg').innerText = enemyState.dmg;
+  document.getElementById('game-enemy-wpm').innerText = enemyState.wpm;
 });
 
 socket.on('gameOver', (data) => {
-  const isWinner = data.winner === myPlayerNum;
-  if (isWinner) {
-    document.getElementById('winner-text').innerText = "YOU WON THE RACE!";
-    document.getElementById('winner-text').style.color = "#00b894";
-    document.getElementById('reward-text').innerText = "+50 ACORNS";
-    saveData.coins += 50;
-    saveData.wins++;
-    saveGame();
-  } else {
-    document.getElementById('winner-text').innerText = "YOU GOT LOST!";
-    document.getElementById('winner-text').style.color = "#d63031";
-    document.getElementById('reward-text').innerText = "";
-  }
-  changeScene('GAME_OVER');
+  app.endGame(data.winner);
 });
 
-// --- Game Engine Rendering ---
+socket.on('roomError', (msg) => {
+  alert(msg);
+  app.cancelMatch();
+});
 
-function drawPlayer(p, playerNum, isInverted) {
-  ctx.save();
-  ctx.translate(p.x, p.y);
+// --- Canvas Graphics Engine ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const graphics = {
+  running: false,
+  lastTime: 0,
   
-  const heroId = (playerNum === myPlayerNum) ? myHeroId : enemyHeroId;
-  const img = IMAGES[heroId];
+  p1: { x: 300, y: 350, state: 'IDLE', animTimer: 0 },
+  p2: { x: 980, y: 350, state: 'IDLE', animTimer: 0 },
   
-  if (img && img.complete) {
-    // Draw the generated top-down image sprite
-    ctx.drawImage(img, -p.radius, -p.radius, p.radius*2, p.radius*2);
-  } else {
-    // Fallback simple circle
-    ctx.fillStyle = playerNum === 1 ? '#e84393' : '#fdcb6e';
-    ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
-  }
+  start() {
+    this.running = true;
+    this.lastTime = Date.now();
+    this.p1.state = 'IDLE';
+    this.p2.state = 'IDLE';
+    requestAnimationFrame(this.loop.bind(this));
+  },
   
-  if (isInverted) {
-    // Dizzy Effect (Spinning Stars)
-    const time = Date.now() / 200;
-    ctx.fillStyle = '#ffeaa7';
-    for(let i=0; i<3; i++) {
-      const angle = time + (i * Math.PI*2/3);
-      ctx.beginPath();
-      ctx.arc(Math.cos(angle)*(p.radius+10), Math.sin(angle)*(p.radius+10), 5, 0, Math.PI*2);
-      ctx.fill();
+  stop() {
+    this.running = false;
+  },
+  
+  triggerLocalAttack() {
+    const me = appState.match.isPlayer1 ? this.p1 : this.p2;
+    me.state = 'ATTACK';
+    me.animTimer = 0.3; // seconds
+  },
+  
+  triggerEnemyAttack() {
+    const enemy = appState.match.isPlayer1 ? this.p2 : this.p1;
+    enemy.state = 'ATTACK';
+    enemy.animTimer = 0.3; // seconds
+  },
+  
+  loop() {
+    if (!this.running) return;
+    const now = Date.now();
+    const dt = (now - this.lastTime) / 1000;
+    this.lastTime = now;
+    
+    // Clear
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Update logic
+    this.updateStickman(this.p1, dt);
+    this.updateStickman(this.p2, dt);
+    
+    // Draw
+    this.drawStickman(this.p1, 1);
+    this.drawStickman(this.p2, -1); // flip p2
+    
+    requestAnimationFrame(this.loop.bind(this));
+  },
+  
+  updateStickman(p, dt) {
+    if (p.state === 'ATTACK') {
+      p.animTimer -= dt;
+      if (p.animTimer <= 0) {
+        p.state = 'IDLE';
+      }
     }
-  }
+  },
   
-  ctx.restore();
-}
-
-function drawArena() {
-  // Safe Zones
-  ctx.fillStyle = '#saddlebrown'; // Mud puddle (Blue/Pig starts here)
-  ctx.fillRect(0, 700, 800, 100);
-  
-  ctx.fillStyle = '#fdcb6e'; // Straw nest (Red/Chicken starts here)
-  ctx.fillRect(0, 0, 800, 100);
-  
-  // Wooden Log Maze
-  if (serverState && serverState.maze) {
-    ctx.fillStyle = '#8e44ad'; // brown logs
-    ctx.strokeStyle = '#2d3436';
-    ctx.lineWidth = 4;
-    serverState.maze.forEach(b => {
-      // Draw rounded rectangle for logs/bushes
-      ctx.fillStyle = '#d35400'; // Log brown
-      ctx.beginPath();
-      ctx.roundRect(b.x, b.y, b.w, b.h, 15);
-      ctx.fill();
-      ctx.stroke();
-    });
-  }
-}
-
-function loop() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  if (gameState === 'GAMEPLAY' && serverState) {
+  drawStickman(p, direction) {
     ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.scale(direction, 1); // Flip if p2
     
-    // Scale and center the 800x800 arena
-    const scale = Math.min(canvas.width / 800, canvas.height / 800) * 0.95; // 95% to leave a tiny padding
-    const offsetX = (canvas.width - (800 * scale)) / 2;
-    const offsetY = (canvas.height - (800 * scale)) / 2;
+    ctx.strokeStyle = direction === 1 ? '#3498db' : '#e74c3c';
+    if (p.state === 'ATTACK') ctx.strokeStyle = '#f1c40f'; // glow on attack
     
-    ctx.translate(offsetX, offsetY);
-    ctx.scale(scale, scale);
-
-    if (screenShake > 0) {
-      ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
-      screenShake -= 1;
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // Stickman Body
+    ctx.beginPath();
+    
+    if (p.state === 'IDLE') {
+      // Bobbing
+      const bob = Math.sin(Date.now() / 200) * 5;
+      
+      // Head
+      ctx.arc(0, -100 + bob, 20, 0, Math.PI * 2);
+      // Torso
+      ctx.moveTo(0, -80 + bob);
+      ctx.lineTo(0, 0 + bob);
+      // Arms
+      ctx.moveTo(0, -60 + bob);
+      ctx.lineTo(40, -40 + bob);
+      ctx.moveTo(0, -60 + bob);
+      ctx.lineTo(-30, -30 + bob);
+      // Legs
+      ctx.moveTo(0, 0 + bob);
+      ctx.lineTo(20, 50);
+      ctx.moveTo(0, 0 + bob);
+      ctx.lineTo(-20, 50);
+      
+      ctx.stroke();
+      
+      // Idle Weapon (Sword)
+      ctx.beginPath();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 4;
+      ctx.moveTo(40, -40 + bob);
+      ctx.lineTo(60, -90 + bob);
+      ctx.stroke();
+      
+    } else if (p.state === 'ATTACK') {
+      // Lunge forward
+      ctx.translate(100, 0); // shift forward
+      
+      // Head
+      ctx.arc(20, -90, 20, 0, Math.PI * 2);
+      // Torso
+      ctx.moveTo(10, -70);
+      ctx.lineTo(-10, 10);
+      // Arms (Striking)
+      ctx.moveTo(0, -50);
+      ctx.lineTo(60, -50); // Arm straight out
+      ctx.moveTo(0, -50);
+      ctx.lineTo(-40, -20);
+      // Legs
+      ctx.moveTo(-10, 10);
+      ctx.lineTo(-40, 50);
+      ctx.moveTo(-10, 10);
+      ctx.lineTo(30, 50);
+      
+      ctx.stroke();
+      
+      // Attack Weapon (Sword)
+      ctx.beginPath();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 6;
+      ctx.moveTo(60, -50);
+      ctx.lineTo(150, -50); // Big stab
+      
+      // Slash effect
+      ctx.moveTo(100, -80);
+      ctx.quadraticCurveTo(180, -50, 100, -20);
+      
+      ctx.stroke();
     }
-    
-    // Draw the arena background and border
-    ctx.fillStyle = '#55efc4';
-    ctx.fillRect(0, 0, 800, 800);
-    
-    ctx.lineWidth = 10;
-    ctx.strokeStyle = saveData.equippedBorder === 'border_crimson' ? '#8b4513' : '#saddlebrown';
-    ctx.strokeRect(0, 0, 800, 800);
-    
-    drawArena();
-    
-    // Draw Players
-    const p1Inverted = serverState.invertedPlayer === 1;
-    const p2Inverted = serverState.invertedPlayer === 2;
-    
-    drawPlayer(serverState.p1, 1, p1Inverted);
-    drawPlayer(serverState.p2, 2, p2Inverted);
     
     ctx.restore();
   }
-  
-  requestAnimationFrame(loop);
-}
+};
 
-// Init
+// --- Boot ---
 window.onload = () => {
-  loadSave();
-  
-  function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
-  
-  loop();
+  app.init();
 };

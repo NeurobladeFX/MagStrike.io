@@ -98,10 +98,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Real-time input
-  socket.on('input', (keys) => {
+  // Real-time combat
+  socket.on('attack', (data) => {
     if (socket.roomId && rooms.has(socket.roomId)) {
-      rooms.get(socket.roomId).handleInput(socket.id, keys);
+      rooms.get(socket.roomId).handleAttack(socket.id, data);
     }
   });
 
