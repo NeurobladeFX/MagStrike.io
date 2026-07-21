@@ -49,8 +49,8 @@ button { cursor: pointer; font-family: var(--font); }
 }
 .hidden { display: none !important; }
 .hidden-panel { display: none !important; }
-#shop-panel { display: flex !important; }
-#shop-panel:not(.active) { opacity: 0; pointer-events: none; transform: translate(-50%,-50%) scale(0.94); }
+#shop-panel, #profile-panel { display: flex !important; }
+#shop-panel:not(.active), #profile-panel:not(.active) { opacity: 0; pointer-events: none; transform: translate(-50%,-50%) scale(0.94); }
 
 /* ── LOADING ──────────────────────────────────────────────────────────────── */
 .loader-content { text-align: center; }
@@ -208,7 +208,7 @@ button { cursor: pointer; font-family: var(--font); }
 }
 
 /* ── SHOP ─────────────────────────────────────────────────────────────────── */
-#shop-panel {
+#shop-panel, #profile-panel {
   background: var(--panel); backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   width: min(860px, 88vw); max-height: 82vh;
@@ -218,8 +218,9 @@ button { cursor: pointer; font-family: var(--font); }
   transform: translate(-50%, -50%);
   flex-direction: column; gap: 16px;
   transition: .3s ease;
+  z-index: 100;
 }
-#shop-panel.active {
+#shop-panel.active, #profile-panel.active {
   opacity: 1; pointer-events: all;
   transform: translate(-50%, -50%) scale(1);
 }
