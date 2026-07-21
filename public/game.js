@@ -121,11 +121,20 @@ const app = {
   },
 
   updateGlobalUI() {
-    document.getElementById('my-level').innerText = appState.level;
-    document.getElementById('my-wpm').innerText = appState.wpmRecord;
-    document.getElementById('shop-credits').innerText = appState.credits;
-    document.getElementById('my-name').innerText = appState.playerName;
-    document.getElementById('my-avatar').src = this.getAvatarSrc(appState.avatar);
+    const lvlEl = document.getElementById('my-level');
+    if (lvlEl) lvlEl.innerText = appState.level;
+    
+    const wpmEl = document.getElementById('my-wpm');
+    if (wpmEl) wpmEl.innerText = appState.wpmRecord;
+    
+    const credEl = document.getElementById('shop-credits');
+    if (credEl) credEl.innerText = appState.credits;
+    
+    const nameEl = document.getElementById('my-name');
+    if (nameEl) nameEl.innerText = appState.playerName;
+    
+    const avEl = document.getElementById('my-avatar');
+    if (avEl) avEl.src = this.getAvatarSrc(appState.avatar);
   },
 
   changeScene(sceneId) {
