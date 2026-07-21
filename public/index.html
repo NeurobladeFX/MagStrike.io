@@ -66,32 +66,23 @@
     <div id="shop-grid" class="shop-grid"></div>
   </div>
 
-  <!-- ─── PROFILE PANEL ────────────────────────────────────────── -->
-  <div id="profile-panel" class="scene hidden-panel">
-    <div class="panel-header">
-      <h2>EDIT PROFILE</h2>
-      <button class="close-btn" onclick="app.closeProfile()">✕</button>
+  <!-- ─── AAA PROFILE SCREEN ──────────────────────────────────────── -->
+  <div id="profile-panel" class="scene hidden-panel aaa-profile">
+    
+    <div class="aaa-profile-title">AVATAR SELECTION</div>
+
+    <div class="aaa-profile-wrapper">
+      <div class="aaa-red-backdrop"></div>
+      <div id="profile-avatar-grid" class="aaa-avatar-grid">
+        <!-- JS injected avatars -->
+      </div>
     </div>
     
-    <div class="profile-edit-content">
-      <div class="input-group">
-        <label>MAGE NAME</label>
-        <input type="text" id="profile-name-input" maxlength="15" placeholder="Enter name...">
-      </div>
-      
-      <div class="input-group">
-        <label>AVATAR SELECTION</label>
-        <div id="profile-avatar-grid" class="shop-grid" style="grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));">
-          <!-- Populated by JS -->
-        </div>
-      </div>
-
-      <div class="input-group" style="align-items: center; margin-top: 10px;">
-        <button class="upload-btn" onclick="document.getElementById('avatar-upload-input').click()">UPLOAD CUSTOM AVATAR</button>
-        <input type="file" id="avatar-upload-input" accept="image/png, image/jpeg" style="display:none;" onchange="app.handleAvatarUpload(event)">
-      </div>
-
-      <button class="huge-play-btn" style="margin-top:20px; font-size:1.2rem; padding: 15px;" onclick="app.saveProfile()">SAVE CHANGES</button>
+    <div class="aaa-profile-controls">
+      <input type="text" id="profile-name-input" maxlength="15" placeholder="ENTER MAGE NAME">
+      <button class="upload-btn" onclick="document.getElementById('avatar-upload-input').click()">UPLOAD CUSTOM AVATAR</button>
+      <input type="file" id="avatar-upload-input" accept="image/png, image/jpeg" style="display:none;" onchange="app.handleAvatarUpload(event)">
+      <button class="huge-play-btn" style="font-size:1.2rem; padding: 12px 24px;" onclick="app.saveProfile()">SAVE & EXIT</button>
     </div>
   </div>
 

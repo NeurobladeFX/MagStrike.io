@@ -180,8 +180,10 @@ const app = {
     const grid = document.getElementById('profile-avatar-grid');
     const available = ['hero_pig', 'hero_cat', 'hero_dog', 'hero_bear', 'hero_chicken', 'hero_frog', 'avatar_1', 'avatar_2'];
     grid.innerHTML = available.map(av => `
-      <div class="shop-item ${appState.avatar === av ? 'selected' : ''}" onclick="app.selectProfileAvatar('${av}')">
-        <img class="avatar-preview" src="${this.getAvatarSrc(av)}" onerror="this.src='assets/avatar_default.png'">
+      <div class="aaa-avatar-item ${appState.avatar === av ? 'selected' : ''}" onclick="app.selectProfileAvatar('${av}')">
+        <div class="aaa-avatar-circle">
+          <img src="${this.getAvatarSrc(av)}" onerror="this.src='assets/avatar_default.png'">
+        </div>
       </div>
     `).join('');
   },

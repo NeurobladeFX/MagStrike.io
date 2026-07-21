@@ -49,8 +49,8 @@ button { cursor: pointer; font-family: var(--font); }
 }
 .hidden { display: none !important; }
 .hidden-panel { display: none !important; }
-#shop-panel, #profile-panel { display: flex !important; }
-#shop-panel:not(.active), #profile-panel:not(.active) { opacity: 0; pointer-events: none; transform: translate(-50%,-50%) scale(0.94); }
+#shop-panel { display: flex !important; }
+#shop-panel:not(.active) { opacity: 0; pointer-events: none; transform: translate(-50%,-50%) scale(0.94); }
 
 /* ── LOADING ──────────────────────────────────────────────────────────────── */
 .loader-content { text-align: center; }
@@ -208,7 +208,7 @@ button { cursor: pointer; font-family: var(--font); }
 }
 
 /* ── SHOP ─────────────────────────────────────────────────────────────────── */
-#shop-panel, #profile-panel {
+#shop-panel {
   background: var(--panel); backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   width: min(860px, 88vw); max-height: 82vh;
@@ -220,7 +220,7 @@ button { cursor: pointer; font-family: var(--font); }
   transition: .3s ease;
   z-index: 100;
 }
-#shop-panel.active, #profile-panel.active {
+#shop-panel.active {
   opacity: 1; pointer-events: all;
   transform: translate(-50%, -50%) scale(1);
 }
@@ -251,16 +251,73 @@ button { cursor: pointer; font-family: var(--font); }
 .shop-item.selected { border-color: var(--blue-bright); background: rgba(0,212,255,0.1); }
 .shop-item.selected img.avatar-preview { border-color: var(--blue-bright); box-shadow: 0 0 15px var(--blue-glow); }
 
-/* ── PROFILE PANEL ───────────────────────────────────────────────────────── */
-.profile-edit-content { display: flex; flex-direction: column; gap: 24px; }
-.input-group { display: flex; flex-direction: column; gap: 10px; }
-.input-group label { font-size: 0.9rem; font-weight: 700; color: var(--text-dim); letter-spacing: 2px; }
-.input-group input { 
-  background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.1);
-  color: #fff; padding: 16px; border-radius: 8px; font-size: 1.2rem;
-  font-family: inherit; transition: .2s; outline: none; font-weight: 700;
+/* ── AAA PROFILE SCREEN ───────────────────────────────────────────────────────── */
+.aaa-profile {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(5,0,0,0.85); backdrop-filter: blur(8px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 50; transition: .4s ease;
 }
-.input-group input:focus { border-color: var(--blue-bright); box-shadow: 0 0 20px var(--blue-glow); }
+.aaa-profile:not(.active) { opacity: 0; pointer-events: none; }
+.aaa-profile.active { opacity: 1; pointer-events: all; display: flex !important; }
+
+.aaa-profile-title {
+  font-size: 1.2rem; font-weight: 900; letter-spacing: 6px; color: var(--text-dim);
+  margin-bottom: 30px; text-transform: uppercase; z-index: 51;
+}
+
+.aaa-profile-wrapper {
+  position: relative; width: 100%; display: flex; justify-content: center;
+  margin-bottom: 40px; margin-top: 20px;
+}
+.aaa-red-backdrop {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(900px, 95vw); height: 350px;
+  background: rgba(10, 0, 0, 0.5);
+  border: 1px solid rgba(255, 51, 51, 0.4);
+  border-radius: 20px; z-index: -1;
+}
+
+.aaa-avatar-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 15px; width: 100%; max-width: 320px; margin: 0 auto;
+}
+
+.aaa-avatar-item {
+  background: rgba(0,0,0,0.7);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 16px; padding: 25px;
+  display: flex; justify-content: center; align-items: center;
+  cursor: pointer; transition: 0.2s;
+}
+.aaa-avatar-item:hover {
+  background: rgba(20,20,20,0.9); border-color: rgba(255,255,255,0.2);
+}
+.aaa-avatar-item.selected {
+  border-color: var(--blue-bright);
+  box-shadow: 0 0 20px var(--blue-glow);
+}
+
+.aaa-avatar-circle {
+  width: 90px; height: 90px; border-radius: 50%;
+  background: #fff; display: flex; justify-content: center; align-items: center;
+  overflow: hidden; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+.aaa-avatar-circle img {
+  width: 80%; height: 80%; object-fit: contain;
+}
+
+.aaa-profile-controls {
+  margin-top: 20px; display: flex; gap: 20px; align-items: center; justify-content: center;
+  z-index: 51;
+}
+#profile-name-input {
+  background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.1);
+  color: #fff; padding: 14px 20px; border-radius: 8px; font-size: 1.1rem;
+  font-family: inherit; font-weight: 700; width: 220px; text-align: center;
+  transition: 0.2s; outline: none;
+}
+#profile-name-input:focus { border-color: var(--blue-bright); box-shadow: 0 0 15px var(--blue-glow); }
 
 /* ── WAITING / VS ─────────────────────────────────────────────────────────── */
 .split-screen {
