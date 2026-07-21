@@ -20,7 +20,8 @@ io.on('connection', (socket) => {
 
   // Random Matchmaking
   socket.on('joinRandom', (data) => {
-    socket.hero = data ? data.hero : 'hero_pig';
+    socket.hero = data && data.avatar ? data.avatar : 'hero_pig';
+    socket.playerName = data && data.name ? data.name : 'SPELLCASTER';
     
     if (matchmakingQueue && matchmakingQueue !== socket) {
       const roomId = `room_${matchmakingQueue.id}_${socket.id}`;
@@ -36,8 +37,8 @@ io.on('connection', (socket) => {
       p1.roomId = roomId;
       p2.roomId = roomId;
       
-      p1.emit('matchStarted', { roomId, playerNum: 1, enemyHero: p2.hero });
-      p2.emit('matchStarted', { roomId, playerNum: 2, enemyHero: p1.hero });
+      p1.emit('matchStarted', { roomId, playerNum: 1, enemyHero: p2.hero, enemyName: p2.playerName });
+      p2.emit('matchStarted', { roomId, playerNum: 2, enemyHero: p1.hero, enemyName: p1.playerName });
       
       gameRoom.start();
       matchmakingQueue = null;
@@ -54,7 +55,8 @@ io.on('connection', (socket) => {
 
   // Friend Rooms
   socket.on('createRoom', (data) => {
-    socket.hero = data ? data.hero : 'hero_pig';
+    socket.hero = data && data.avatar ? data.avatar : 'hero_pig';
+    socket.playerName = data && data.name ? data.name : 'SPELLCASTER';
     const roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
     socket.join(roomId);
     socket.roomId = roomId;
@@ -65,17 +67,20 @@ io.on('connection', (socket) => {
   socket.on('joinRoom', (data) => {
     let code = '';
     let hero = 'hero_pig';
+    let name = 'SPELLCASTER';
     
     if (typeof data === 'string') {
       code = data.toUpperCase();
     } else if (data && data.code) {
       code = data.code.toUpperCase();
-      hero = data.hero || 'hero_pig';
+      hero = data.avatar || data.hero || 'hero_pig';
+      name = data.name || 'SPELLCASTER';
     } else {
       return;
     }
     
     socket.hero = hero;
+    socket.playerName = name;
     
     const room = io.sockets.adapter.rooms.get(code);
     if (room && room.size === 1) {
@@ -89,8 +94,8 @@ io.on('connection', (socket) => {
       const gameRoom = new GameRoom(code, io, p1.id, p2.id, p1.hero, p2.hero);
       rooms.set(code, gameRoom);
       
-      p1.emit('matchStarted', { roomId: code, playerNum: 1, enemyHero: p2.hero });
-      p2.emit('matchStarted', { roomId: code, playerNum: 2, enemyHero: p1.hero });
+      p1.emit('matchStarted', { roomId: code, playerNum: 1, enemyHero: p2.hero, enemyName: p2.playerName });
+      p2.emit('matchStarted', { roomId: code, playerNum: 2, enemyHero: p1.hero, enemyName: p1.playerName });
       
       gameRoom.start();
     } else {

@@ -210,6 +210,20 @@ button { cursor: pointer; font-family: var(--font); }
 .shop-item:hover { transform: translateY(-4px); border-color: var(--red); }
 .shop-item h3 { font-size: .95rem; margin: 8px 0; }
 .shop-item p  { font-size: .8rem; color: var(--text-dim); }
+.shop-item img.avatar-preview { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 2px solid transparent; transition: .2s; }
+.shop-item.selected { border-color: var(--blue-bright); background: rgba(0,212,255,0.1); }
+.shop-item.selected img.avatar-preview { border-color: var(--blue-bright); box-shadow: 0 0 15px var(--blue-glow); }
+
+/* ── PROFILE PANEL ───────────────────────────────────────────────────────── */
+.profile-edit-content { display: flex; flex-direction: column; gap: 24px; }
+.input-group { display: flex; flex-direction: column; gap: 10px; }
+.input-group label { font-size: 0.9rem; font-weight: 700; color: var(--text-dim); letter-spacing: 2px; }
+.input-group input { 
+  background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.1);
+  color: #fff; padding: 16px; border-radius: 8px; font-size: 1.2rem;
+  font-family: inherit; transition: .2s; outline: none; font-weight: 700;
+}
+.input-group input:focus { border-color: var(--blue-bright); box-shadow: 0 0 20px var(--blue-glow); }
 
 /* ── WAITING / VS ─────────────────────────────────────────────────────────── */
 .split-screen {

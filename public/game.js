@@ -8,6 +8,7 @@ const appState = {
   credits: 0,
   level: 1,
   avatar: 'hero_pig',
+  playerName: 'SPELLCASTER',
   wpmRecord: 0,
   match: {
     inMatch: false,
@@ -96,6 +97,7 @@ const app = {
         appState.level = parsed.level || 1;
         appState.wpmRecord = parsed.wpmRecord || 0;
         appState.avatar = parsed.avatar || 'hero_pig';
+        appState.playerName = parsed.playerName || 'SPELLCASTER';
       } catch (e) { console.error('Save corrupt'); }
     }
     this.updateGlobalUI();
@@ -106,7 +108,8 @@ const app = {
       credits: appState.credits,
       level: appState.level,
       wpmRecord: appState.wpmRecord,
-      avatar: appState.avatar
+      avatar: appState.avatar,
+      playerName: appState.playerName
     }));
     this.updateGlobalUI();
   },
@@ -115,6 +118,8 @@ const app = {
     document.getElementById('my-level').innerText = appState.level;
     document.getElementById('my-wpm').innerText = appState.wpmRecord;
     document.getElementById('shop-credits').innerText = appState.credits;
+    document.getElementById('my-name').innerText = appState.playerName;
+    document.getElementById('my-avatar').src = `assets/${appState.avatar}.png`;
   },
 
   changeScene(sceneId) {
@@ -135,8 +140,35 @@ const app = {
   },
 
   openProfile() {
-    // simple alert for now
-    alert(`WPM Record: ${appState.wpmRecord}\nCredits: ${appState.credits}`);
+    document.getElementById('profile-panel').classList.add('active');
+    document.getElementById('profile-name-input').value = appState.playerName;
+    this.renderProfileAvatars();
+  },
+
+  closeProfile() {
+    document.getElementById('profile-panel').classList.remove('active');
+  },
+
+  saveProfile() {
+    const newName = document.getElementById('profile-name-input').value.trim();
+    if (newName) appState.playerName = newName.toUpperCase();
+    this.saveGame();
+    this.closeProfile();
+  },
+
+  renderProfileAvatars() {
+    const grid = document.getElementById('profile-avatar-grid');
+    const available = ['hero_pig', 'hero_cat', 'hero_dog', 'hero_bear', 'hero_chicken', 'hero_frog', 'avatar_1', 'avatar_2'];
+    grid.innerHTML = available.map(av => `
+      <div class="shop-item ${appState.avatar === av ? 'selected' : ''}" onclick="app.selectProfileAvatar('${av}')">
+        <img class="avatar-preview" src="assets/${av}.png">
+      </div>
+    `).join('');
+  },
+
+  selectProfileAvatar(avId) {
+    appState.avatar = avId;
+    this.renderProfileAvatars(); // Re-render to highlight
   },
 
   openShop() {
@@ -152,7 +184,7 @@ const app = {
     document.getElementById('wait-enemy-side').classList.add('hidden');
     const ticker = document.getElementById('match-ticker');
     if (ticker) ticker.innerText = 'SEARCHING FOR OPPONENT...';
-    socket.emit('joinRandom', { avatar: appState.avatar });
+    socket.emit('joinRandom', { avatar: appState.avatar, name: appState.playerName });
   },
 
   cancelMatch() {
@@ -259,8 +291,15 @@ const app = {
 
 // --- Networking (Socket) ---
 socket.on('matchStarted', (data) => {
-  // data: { roomId, playerNum, enemyAvatar }
+  // data: { roomId, playerNum, enemyHero, enemyName }
   appState.match.isPlayer1 = (data.playerNum === 1);
+  const eName = data.enemyName || '???';
+  
+  // Set in VS screen
+  document.getElementById('vs-enemy-name').innerText = eName;
+  // Set in Game screen HUD
+  document.getElementById('game-enemy-name').innerText = eName;
+  
   app.startCountdown();
 });
 

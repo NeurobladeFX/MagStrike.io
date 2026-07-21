@@ -63,6 +63,30 @@
     <div id="shop-grid" class="shop-grid"></div>
   </div>
 
+  <!-- ─── PROFILE PANEL ────────────────────────────────────────── -->
+  <div id="profile-panel" class="scene hidden-panel">
+    <div class="panel-header">
+      <h2>EDIT PROFILE</h2>
+      <button class="close-btn" onclick="app.closeProfile()">✕</button>
+    </div>
+    
+    <div class="profile-edit-content">
+      <div class="input-group">
+        <label>MAGE NAME</label>
+        <input type="text" id="profile-name-input" maxlength="15" placeholder="Enter name...">
+      </div>
+      
+      <div class="input-group">
+        <label>AVATAR SELECTION</label>
+        <div id="profile-avatar-grid" class="shop-grid" style="grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <button class="huge-play-btn" style="margin-top:20px; font-size:1.2rem; padding: 15px;" onclick="app.saveProfile()">SAVE CHANGES</button>
+    </div>
+  </div>
+
   <!-- ─── MATCHMAKING ─────────────────────────────────────────── -->
   <div id="waiting-screen" class="scene">
     <div class="split-screen">
