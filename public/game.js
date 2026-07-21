@@ -98,23 +98,30 @@ function onLetterCorrect(moveName) {
   totalHits++;
   totalAttempts++;
   combo = Math.min(combo + 1, 10);
-  document.getElementById('combo-count').innerText = combo;
+  const comboEl = document.getElementById('combo-count');
+  if (comboEl) comboEl.innerText = combo;
 
   const baseDmg = 10;
   const damage  = Math.floor(baseDmg * (1 + (combo - 1) * 0.15));
 
   const currentWpm = calculateWPM();
-  document.getElementById('game-my-wpm').innerText = currentWpm;
+  const wpmEl = document.getElementById('game-my-wpm');
+  if (wpmEl) wpmEl.innerText = currentWpm;
+
+  const letter = typeof moveName === 'string' ? moveName.replace('Spell_', '') : 'SPELL';
 
   // Sync to server
-  socket.emit('attack', { damage, wpm: currentWpm, move: moveName });
+  if (socket) {
+    socket.emit('attack', { damage, wpm: currentWpm, letter, move: moveName });
+  }
 }
 
 // Called by DualCombatScene when wrong letter is pressed
 function onLetterWrong() {
   totalAttempts++;
   combo = 1;
-  document.getElementById('combo-count').innerText = combo;
+  const comboEl = document.getElementById('combo-count');
+  if (comboEl) comboEl.innerText = combo;
 }
 
 
@@ -163,6 +170,15 @@ const app = {
       playerName: appState.playerName
     }));
     this.updateGlobalUI();
+    if (socket) {
+      socket.emit('submitScore', {
+        name: appState.playerName,
+        avatar: appState.avatar,
+        level: appState.level,
+        wpm: appState.wpmRecord,
+        gold: appState.credits
+      });
+    }
   },
 
   getAvatarSrc(av) {
@@ -270,6 +286,7 @@ const app = {
 
   openLeaderboard() {
     this.changeScene('leaderboard-screen');
+    if (socket) socket.emit('getLeaderboard');
     this.renderLeaderboard();
   },
 
@@ -292,19 +309,19 @@ const app = {
         <div class="podium-card rank-2">
           <div class="podium-badge">🥈 #2</div>
           <img class="podium-avatar" src="${this.getAvatarSrc(p2.avatar)}" onerror="this.src='assets/avatar_default.png'">
-          <div class="podium-name">${p2.name}</div>
+          <div class="podium-name">${p2.name} ${p2.isPlayer ? '(YOU)' : ''}</div>
           <div class="podium-score">${p2.wpm} WPM</div>
         </div>
         <div class="podium-card rank-1">
           <div class="podium-badge">👑 #1</div>
           <img class="podium-avatar" src="${this.getAvatarSrc(p1.avatar)}" onerror="this.src='assets/avatar_default.png'">
-          <div class="podium-name">${p1.name}</div>
+          <div class="podium-name">${p1.name} ${p1.isPlayer ? '(YOU)' : ''}</div>
           <div class="podium-score">${p1.wpm} WPM</div>
         </div>
         <div class="podium-card rank-3">
           <div class="podium-badge">🥉 #3</div>
           <img class="podium-avatar" src="${this.getAvatarSrc(p3.avatar)}" onerror="this.src='assets/avatar_default.png'">
-          <div class="podium-name">${p3.name}</div>
+          <div class="podium-name">${p3.name} ${p3.isPlayer ? '(YOU)' : ''}</div>
           <div class="podium-score">${p3.wpm} WPM</div>
         </div>
       `;
@@ -341,14 +358,19 @@ const app = {
 
   findMatch() {
     this.changeScene('waiting-screen');
+    const waitMyAv = document.getElementById('wait-my-avatar');
+    const waitMyName = document.getElementById('wait-my-name');
+    if (waitMyAv) waitMyAv.src = this.getAvatarSrc(appState.avatar);
+    if (waitMyName) waitMyName.innerText = appState.playerName;
+
     document.getElementById('wait-enemy-side').classList.add('hidden');
     const ticker = document.getElementById('match-ticker');
     if (ticker) ticker.innerText = 'SEARCHING FOR OPPONENT...';
-    socket.emit('joinRandom', { avatar: appState.avatar, name: appState.playerName });
+    if (socket) socket.emit('joinRandom', { avatar: appState.avatar, name: appState.playerName });
   },
 
   cancelMatch() {
-    socket.emit('leaveQueue');
+    if (socket) socket.emit('leaveQueue');
     this.changeScene('lobby-screen');
   },
   
@@ -450,63 +472,92 @@ const app = {
 };
 
 // --- Networking (Socket) ---
-socket.on('matchStarted', (data) => {
-  // data: { roomId, playerNum, enemyHero, enemyName }
-  appState.match.isPlayer1 = (data.playerNum === 1);
-  const eName = data.enemyName || '???';
-  
-  // Set in VS screen
-  document.getElementById('vs-enemy-name').innerText = eName;
-  document.getElementById('vs-my-avatar').src = app.getAvatarSrc(appState.avatar);
-  document.getElementById('vs-enemy-avatar').src = app.getAvatarSrc(data.enemyHero);
-  document.getElementById('wait-enemy-avatar').src = app.getAvatarSrc(data.enemyHero);
-  
-  // Set in Game screen HUD
-  document.getElementById('game-enemy-name').innerText = eName;
-  const gameMyAvatar = document.getElementById('game-my-avatar');
-  if (gameMyAvatar) gameMyAvatar.src = app.getAvatarSrc(appState.avatar);
-  const gameEnemyAvatar = document.getElementById('game-enemy-avatar');
-  if (gameEnemyAvatar) gameEnemyAvatar.src = app.getAvatarSrc(data.enemyHero);
-  
-  app.startCountdown();
-});
+if (socket) {
+  socket.on('matchStarted', (data) => {
+    // data: { roomId, playerNum, enemyHero, enemyName }
+    appState.match.isPlayer1 = (data.playerNum === 1);
+    const eName = data.enemyName || '???';
+    
+    // Set names in waiting & VS screens
+    const vsMyName = document.getElementById('vs-my-name');
+    if (vsMyName) vsMyName.innerText = appState.playerName;
+    const vsEnemyName = document.getElementById('vs-enemy-name');
+    if (vsEnemyName) vsEnemyName.innerText = eName;
+    const waitEnemyName = document.getElementById('wait-enemy-name');
+    if (waitEnemyName) waitEnemyName.innerText = eName;
 
-socket.on('gameState', (state) => {
-  if (!appState.match.inMatch) return;
-  
-  // server sends { p1: { health, dmg, wpm, isAttacking }, p2: { health, dmg, wpm, isAttacking } }
-  const myState = appState.match.isPlayer1 ? state.p1 : state.p2;
-  const enemyState = appState.match.isPlayer1 ? state.p2 : state.p1;
-  
-  // Health
-  appState.match.myHealth = myState.health;
-  appState.match.enemyHealth = enemyState.health;
-  
-  document.getElementById('my-health').style.width = `${Math.max(0, (myState.health / MAX_HEALTH) * 100)}%`;
-  document.getElementById('enemy-health').style.width = `${Math.max(0, (enemyState.health / MAX_HEALTH) * 100)}%`;
-  
-  // Check enemy attacks for animation
-  if (enemyState.isAttacking) {
-    if (graphics) graphics.triggerEnemyAttack();
-  }
-  
-  // Update health bars in combat scene using percentages
-  if (graphics) graphics.updateHealthBars((myState.health / MAX_HEALTH) * 100, (enemyState.health / MAX_HEALTH) * 100);
-  
-  // Stats
-  document.getElementById('game-my-dmg').innerText = myState.dmg;
-  document.getElementById('game-enemy-dmg').innerText = enemyState.dmg;
-  document.getElementById('game-enemy-wpm').innerText = enemyState.wpm;
-});
+    const vsMyAvatar = document.getElementById('vs-my-avatar');
+    if (vsMyAvatar) vsMyAvatar.src = app.getAvatarSrc(appState.avatar);
+    const vsEnemyAvatar = document.getElementById('vs-enemy-avatar');
+    if (vsEnemyAvatar) vsEnemyAvatar.src = app.getAvatarSrc(data.enemyHero);
+    const waitEnemyAvatar = document.getElementById('wait-enemy-avatar');
+    if (waitEnemyAvatar) waitEnemyAvatar.src = app.getAvatarSrc(data.enemyHero);
+    
+    // Set in Game screen HUD
+    const gameMyName = document.getElementById('game-my-name');
+    if (gameMyName) gameMyName.innerText = appState.playerName;
+    const gameEnemyName = document.getElementById('game-enemy-name');
+    if (gameEnemyName) gameEnemyName.innerText = eName;
 
-socket.on('gameOver', (data) => {
-  app.endGame(data.winner);
-});
+    const gameMyAvatar = document.getElementById('game-my-avatar');
+    if (gameMyAvatar) gameMyAvatar.src = app.getAvatarSrc(appState.avatar);
+    const gameEnemyAvatar = document.getElementById('game-enemy-avatar');
+    if (gameEnemyAvatar) gameEnemyAvatar.src = app.getAvatarSrc(data.enemyHero);
+    
+    app.startCountdown();
+  });
 
-socket.on('roomError', (msg) => {
-  alert(msg);
-  app.cancelMatch();
-});
+  socket.on('gameState', (state) => {
+    if (!appState.match.inMatch) return;
+    
+    const myState = appState.match.isPlayer1 ? state.p1 : state.p2;
+    const enemyState = appState.match.isPlayer1 ? state.p2 : state.p1;
+    
+    // Health
+    appState.match.myHealth = myState.health;
+    appState.match.enemyHealth = enemyState.health;
+    
+    const myHpBar = document.getElementById('my-health');
+    const enemyHpBar = document.getElementById('enemy-health');
+    if (myHpBar) myHpBar.style.width = `${Math.max(0, (myState.health / MAX_HEALTH) * 100)}%`;
+    if (enemyHpBar) enemyHpBar.style.width = `${Math.max(0, (enemyState.health / MAX_HEALTH) * 100)}%`;
+    
+    // Update health bars in combat scene using percentages
+    if (graphics) graphics.updateHealthBars((myState.health / MAX_HEALTH) * 100, (enemyState.health / MAX_HEALTH) * 100);
+    
+    // Stats
+    const myDmgEl = document.getElementById('game-my-dmg');
+    if (myDmgEl) myDmgEl.innerText = myState.dmg;
+    const enemyDmgEl = document.getElementById('game-enemy-dmg');
+    if (enemyDmgEl) enemyDmgEl.innerText = enemyState.dmg;
+    const enemyWpmEl = document.getElementById('game-enemy-wpm');
+    if (enemyWpmEl) enemyWpmEl.innerText = enemyState.wpm;
+  });
+
+  socket.on('opponentAttack', (data) => {
+    if (graphics) {
+      graphics.triggerEnemyAttack(data.letter || 'SPELL');
+    }
+  });
+
+  socket.on('leaderboardData', (serverList) => {
+    if (Array.isArray(serverList)) {
+      localStorage.setItem('typing_battle_leaderboard', JSON.stringify(serverList));
+      if (appState.scene === 'leaderboard-screen') {
+        app.renderLeaderboard();
+      }
+    }
+  });
+
+  socket.on('gameOver', (data) => {
+    app.endGame(data.winner);
+  });
+
+  socket.on('roomError', (msg) => {
+    alert(msg);
+    app.cancelMatch();
+  });
+}
 
 // --- Canvas Graphics Engine (DualCombatScene from SwordCombatEngine.js) ---
 const canvas = document.getElementById('gameCanvas');

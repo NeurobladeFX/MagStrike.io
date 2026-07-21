@@ -721,7 +721,7 @@ class DualCombatScene {
     this.stats.hits++;
     this.stats.lastMove = `SPELL: ${letter}`;
 
-    // Cast spell with alternating hand, use callback to spawn projectile exactly on strike
+    // Cast spell with alternating hand, spawn projectile exactly on strike
     this.p1.attack((castInfo) => {
       const handPos = castInfo.handPos;
       const targetPos = this.p2._worldJ('neck');
@@ -734,25 +734,14 @@ class DualCombatScene {
         '#00d4ff',
         'p1', // owner
         (hitX, hitY) => {
-          // Deal normal damage (health is now scaled to 100)
-          const dmg = R(15, 25);
-          this._localEnemyHp = Math.max(0, this._localEnemyHp - dmg);
-          this.updateHealthBars(this.p1.health, (this._localEnemyHp / 100) * 100);
-          
-          // Add HITSTOP (Freeze Frames) for crunchy impact
           this.hitStop = 0.08; 
-          
-          if (this._localEnemyHp <= 0 && this.p2.health > 0) {
-            this.p2.die();
-          } else {
-            this.p2.takeHit();
-          }
+          this.p2.takeHit();
         }
       );
       this.projectiles.push(proj);
     });
 
-    if (typeof onLetterCorrect === 'function') onLetterCorrect(`Spell_${letter}`);
+    if (typeof onLetterCorrect === 'function') onLetterCorrect(letter);
   }
 
   _onWrong(expected, got) {
@@ -761,12 +750,12 @@ class DualCombatScene {
     if (typeof onLetterWrong === 'function') onLetterWrong();
   }
 
-  triggerLocalAttack(wpm, wordLen) {
+  triggerLocalAttack(wpm, wordLen, letter) {
     this.p1.attack((castInfo) => {
       const proj = new WordProjectile(
         castInfo.handPos.x, castInfo.handPos.y,
         this.p2._worldJ('neck').x, this.p2._worldJ('neck').y,
-        'ZAP', '#00d4ff',
+        letter || 'SPELL', '#00d4ff',
         'p1',
         () => this.p2.takeHit()
       );
@@ -774,12 +763,13 @@ class DualCombatScene {
     });
   }
 
-  triggerEnemyAttack() {
+  triggerEnemyAttack(letter) {
+    const spellText = letter || 'SPELL';
     this.p2.attack((castInfo) => {
       const proj = new WordProjectile(
         castInfo.handPos.x, castInfo.handPos.y,
         this.p1._worldJ('neck').x, this.p1._worldJ('neck').y,
-        'FIRE', '#ff3355',
+        spellText, '#ff3355',
         'p2',
         () => this.p1.takeHit()
       );

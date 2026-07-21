@@ -6,11 +6,10 @@ class GameRoom {
     this.p2Id = p2Id;
     
     // Typing Battle State
-    this.p1 = { health: 100, wpm: 0, dmg: 0, isAttacking: false, attackTimer: 0 };
-    this.p2 = { health: 100, wpm: 0, dmg: 0, isAttacking: false, attackTimer: 0 };
+    this.p1 = { health: 100, wpm: 0, dmg: 0 };
+    this.p2 = { health: 100, wpm: 0, dmg: 0 };
     
     this.gameState = 'PLAYING';
-    
     this.lastTime = Date.now();
   }
 
@@ -21,29 +20,34 @@ class GameRoom {
   stop() {
     if (this.loop) clearInterval(this.loop);
   }
-
-  handleInput(playerId, data) {
-    // legacy, now replaced by handleAttack
-  }
   
   handleAttack(playerId, data) {
     if (this.gameState !== 'PLAYING') return;
     
-    const damage = data.damage || 0;
+    const damage = data.damage || 10;
     const wpm = data.wpm || 0;
+    const letter = data.letter || (data.move ? data.move.replace('Spell_', '') : 'SPELL');
     
     if (playerId === this.p1Id) {
-      this.p2.health -= damage;
+      this.p2.health = Math.max(0, this.p2.health - damage);
       this.p1.wpm = wpm;
       this.p1.dmg += damage;
-      this.p1.isAttacking = true;
-      this.p1.attackTimer = 0.3;
+      
+      // Emit projectile attack event to p2
+      const p2Socket = this.io.sockets.sockets.get(this.p2Id);
+      if (p2Socket) {
+        p2Socket.emit('opponentAttack', { letter, damage, wpm });
+      }
     } else if (playerId === this.p2Id) {
-      this.p1.health -= damage;
+      this.p1.health = Math.max(0, this.p1.health - damage);
       this.p2.wpm = wpm;
       this.p2.dmg += damage;
-      this.p2.isAttacking = true;
-      this.p2.attackTimer = 0.3;
+      
+      // Emit projectile attack event to p1
+      const p1Socket = this.io.sockets.sockets.get(this.p1Id);
+      if (p1Socket) {
+        p1Socket.emit('opponentAttack', { letter, damage, wpm });
+      }
     }
   }
 
@@ -54,21 +58,10 @@ class GameRoom {
     const dt = (now - this.lastTime) / 1000;
     this.lastTime = now;
     
-    // Process attack timers
-    if (this.p1.isAttacking) {
-      this.p1.attackTimer -= dt;
-      if (this.p1.attackTimer <= 0) this.p1.isAttacking = false;
-    }
-    if (this.p2.isAttacking) {
-      this.p2.attackTimer -= dt;
-      if (this.p2.attackTimer <= 0) this.p2.isAttacking = false;
-    }
-    
     // Check Win Condition
     let winner = 0;
     if (this.p1.health <= 0 && this.p2.health <= 0) {
-      // Tie breaker based on highest dmg
-      winner = this.p1.dmg > this.p2.dmg ? 1 : 2;
+      winner = this.p1.dmg >= this.p2.dmg ? 1 : 2;
     } else if (this.p1.health <= 0) {
       winner = 2;
     } else if (this.p2.health <= 0) {
