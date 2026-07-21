@@ -38,7 +38,13 @@
       </div>
     </div>
 
-    <button class="shop-btn" onclick="app.openShop()">✨ SANCTUM</button>
+    <div class="global-gold-display">🟡 <span id="global-credits">0</span></div>
+    <div class="lobby-top-actions">
+      <button class="icon-btn" onclick="app.openLeaderboard()" title="Leaderboard">🏆</button>
+      <button class="icon-btn" onclick="app.openSettings()" title="Settings">⚙️</button>
+    </div>
+
+    <button class="shop-btn-side" onclick="app.openShop()" title="Sanctum">✨</button>
 
     <div class="lobby-center">
       <img src="assets/logo.png" alt="MagStrike" class="main-logo" style="width: 250px; margin-bottom: -50px; position: relative; z-index: 10;">
@@ -83,6 +89,49 @@
       <button class="upload-btn" onclick="document.getElementById('avatar-upload-input').click()">UPLOAD CUSTOM AVATAR</button>
       <input type="file" id="avatar-upload-input" accept="image/png, image/jpeg" style="display:none;" onchange="app.handleAvatarUpload(event)">
       <button class="huge-play-btn" style="font-size:1.2rem; padding: 12px 24px;" onclick="app.saveProfile()">SAVE & EXIT</button>
+    </div>
+  </div>
+
+  <!-- ─── LEADERBOARD PANEL ───────────────────────────────────── -->
+  <div id="leaderboard-panel" class="scene hidden-panel">
+    <div class="panel-header">
+      <h2>GLOBAL RANKINGS</h2>
+      <button class="close-btn" onclick="app.closeLeaderboard()">✕</button>
+    </div>
+    <div class="leaderboard-content">
+      <div class="leaderboard-reward-banner">
+        FIRST RANK REWARD: <span class="gold-text">10,000 GOLD 🟡</span>
+      </div>
+      <div class="leaderboard-list">
+        <div class="lb-row rank-1"><span class="lb-rank">#1</span><span class="lb-name">SHADOWMAGE</span><span class="lb-score">9,450 WPM</span></div>
+        <div class="lb-row rank-2"><span class="lb-rank">#2</span><span class="lb-name">GANDALF</span><span class="lb-score">8,200 WPM</span></div>
+        <div class="lb-row rank-3"><span class="lb-rank">#3</span><span class="lb-name">SPELLCASTER</span><span class="lb-score">7,100 WPM</span></div>
+        <div class="lb-row"><span class="lb-rank">#4</span><span class="lb-name">NOOB_WIZARD</span><span class="lb-score">3,050 WPM</span></div>
+        <div class="lb-row"><span class="lb-rank">#5</span><span class="lb-name">GUEST_007</span><span class="lb-score">1,200 WPM</span></div>
+      </div>
+      <div class="lb-disclaimer">* Rankings update every 24 hours. (Mock data for static site)</div>
+    </div>
+  </div>
+
+  <!-- ─── SETTINGS PANEL ──────────────────────────────────────── -->
+  <div id="settings-panel" class="scene hidden-panel">
+    <div class="panel-header">
+      <h2>SETTINGS</h2>
+      <button class="close-btn" onclick="app.closeSettings()">✕</button>
+    </div>
+    <div class="settings-content">
+      <div class="setting-row">
+        <span>MASTER VOLUME</span>
+        <input type="range" min="0" max="100" value="100" class="vol-slider">
+      </div>
+      <div class="setting-row">
+        <span>MUSIC</span>
+        <button class="toggle-btn active" onclick="this.classList.toggle('active')">ON</button>
+      </div>
+      <div class="setting-row">
+        <span>SOUND EFFECTS</span>
+        <button class="toggle-btn active" onclick="this.classList.toggle('active')">ON</button>
+      </div>
     </div>
   </div>
 

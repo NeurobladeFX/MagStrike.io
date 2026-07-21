@@ -134,6 +134,9 @@ const app = {
     
     const credEl = document.getElementById('shop-credits');
     if (credEl) credEl.innerText = appState.credits;
+
+    const globCredEl = document.getElementById('global-credits');
+    if (globCredEl) globCredEl.innerText = appState.credits;
     
     const nameEl = document.getElementById('my-name');
     if (nameEl) nameEl.innerText = appState.playerName;
@@ -212,6 +215,22 @@ const app = {
   
   closeShop() {
     document.getElementById('shop-panel').classList.remove('active');
+  },
+
+  openLeaderboard() {
+    document.getElementById('leaderboard-panel').classList.add('active');
+  },
+
+  closeLeaderboard() {
+    document.getElementById('leaderboard-panel').classList.remove('active');
+  },
+
+  openSettings() {
+    document.getElementById('settings-panel').classList.add('active');
+  },
+
+  closeSettings() {
+    document.getElementById('settings-panel').classList.remove('active');
   },
 
   findMatch() {
