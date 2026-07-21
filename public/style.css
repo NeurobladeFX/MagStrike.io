@@ -738,7 +738,7 @@ canvas#gameCanvas {
   align-items: center; justify-content: center;
 }
 
-/* Individual clickable letter tile */
+/* Individual keyboard letter tile */
 .letter-tile {
   width: 72px; height: 76px;
   display: flex; align-items: center; justify-content: center;
@@ -749,15 +749,9 @@ canvas#gameCanvas {
   color: rgba(255, 255, 255, 0.45);
   transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
-  cursor: pointer;
+  cursor: default;
   user-select: none;
-}
-
-.letter-tile:hover {
-  transform: translateY(-4px) scale(1.05);
-  border-color: #00d4ff;
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
-  color: #ffffff;
+  pointer-events: none;
 }
 
 /* First tile is the active target */

@@ -601,14 +601,9 @@ class LetterBelt {
     const tile = document.createElement('div');
     tile.className = 'letter-tile entering';
     tile.textContent = letter;
+    tile.style.userSelect = 'none';
 
-    // Make word tile clickable on the bottom!
-    tile.style.cursor = 'pointer';
-    tile.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      this._handleInput(letter, tile);
-    });
-
+    // Spell casting is strictly Keyboard Only — mouse click disabled
     this._belt.appendChild(tile);
     setTimeout(() => tile.classList.remove('entering'), 140);
   }
