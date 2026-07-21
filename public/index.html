@@ -138,12 +138,15 @@
     <!-- Top HUD bar -->
     <div class="arena-hud">
       <div class="player-hud">
-        <div class="hud-name">YOU</div>
-        <div class="health-bar-container">
-          <div id="my-health" class="health-bar fill player-bar"></div>
-        </div>
-        <div class="hud-stats">
-          HITS <span id="game-my-wpm">0</span> &nbsp;|&nbsp; DMG <span id="game-my-dmg">0</span>
+        <img id="game-my-avatar" src="assets/avatar_default.png" class="hud-avatar">
+        <div class="hud-info">
+          <div class="hud-name" id="game-my-name">YOU</div>
+          <div class="health-bar-container">
+            <div id="my-health" class="health-bar fill player-bar"></div>
+          </div>
+          <div class="hud-stats">
+            HITS <span id="game-my-wpm">0</span> &nbsp;|&nbsp; DMG <span id="game-my-dmg">0</span>
+          </div>
         </div>
       </div>
 
@@ -153,13 +156,16 @@
       </div>
 
       <div class="enemy-hud right-align">
-        <div class="hud-name" id="game-enemy-name">ENEMY</div>
-        <div class="health-bar-container right">
-          <div id="enemy-health" class="health-bar fill enemy-bar"></div>
+        <div class="hud-info">
+          <div class="hud-name" id="game-enemy-name">ENEMY</div>
+          <div class="health-bar-container right">
+            <div id="enemy-health" class="health-bar fill enemy-bar"></div>
+          </div>
+          <div class="hud-stats">
+            HITS <span id="game-enemy-wpm">0</span> &nbsp;|&nbsp; DMG <span id="game-enemy-dmg">0</span>
+          </div>
         </div>
-        <div class="hud-stats">
-          HITS <span id="game-enemy-wpm">0</span> &nbsp;|&nbsp; DMG <span id="game-enemy-dmg">0</span>
-        </div>
+        <img id="game-enemy-avatar" src="assets/avatar_default.png" class="hud-avatar">
       </div>
     </div>
 

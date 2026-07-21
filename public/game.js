@@ -336,6 +336,10 @@ socket.on('matchStarted', (data) => {
   
   // Set in Game screen HUD
   document.getElementById('game-enemy-name').innerText = eName;
+  const gameMyAvatar = document.getElementById('game-my-avatar');
+  if (gameMyAvatar) gameMyAvatar.src = app.getAvatarSrc(appState.avatar);
+  const gameEnemyAvatar = document.getElementById('game-enemy-avatar');
+  if (gameEnemyAvatar) gameEnemyAvatar.src = app.getAvatarSrc(data.enemyHero);
   
   app.startCountdown();
 });

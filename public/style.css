@@ -327,8 +327,10 @@ button { cursor: pointer; font-family: var(--font); }
   border-bottom: 1px solid var(--border);
 }
 
-.player-hud, .enemy-hud { width: 380px; }
-.enemy-hud.right-align { text-align: right; }
+.player-hud, .enemy-hud { width: 380px; display: flex; align-items: center; gap: 12px; }
+.enemy-hud.right-align { flex-direction: row-reverse; text-align: right; }
+.hud-info { flex: 1; display: flex; flex-direction: column; }
+.hud-avatar { width: 50px; height: 50px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); object-fit: cover; }
 .hud-name { font-size: 1.1rem; font-weight: 900; letter-spacing: 2px; margin-bottom: 6px; }
 
 .health-bar-container {
