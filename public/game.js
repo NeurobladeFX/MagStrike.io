@@ -115,9 +115,14 @@ const app = {
   },
 
   getAvatarSrc(av) {
-    if (!av || av === 'undefined' || av === 'null') return 'assets/avatar_default.png';
+    if (!av || av === 'undefined' || av === 'null' || typeof av !== 'string') return 'assets/avatar_default.png';
     if (av.startsWith('data:image')) return av;
-    return `assets/${av}.png`;
+    
+    let src = av;
+    if (src.startsWith('assets/')) src = src.replace('assets/', '');
+    if (src.endsWith('.png')) src = src.replace('.png', '');
+    
+    return `assets/${src}.png`;
   },
 
   updateGlobalUI() {
