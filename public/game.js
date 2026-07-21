@@ -120,7 +120,7 @@ const app = {
     
     let src = av;
     if (src.startsWith('assets/')) src = src.replace('assets/', '');
-    if (src.endsWith('.png')) src = src.replace('.png', '');
+    src = src.split('.png')[0];
     
     return `assets/${src}.png`;
   },
