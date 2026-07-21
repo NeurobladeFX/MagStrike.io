@@ -92,24 +92,39 @@
     </div>
   </div>
 
-  <!-- ─── LEADERBOARD PANEL ───────────────────────────────────── -->
-  <div id="leaderboard-panel" class="scene hidden-panel">
-    <div class="panel-header">
-      <h2>GLOBAL RANKINGS</h2>
-      <button class="close-btn" onclick="app.closeLeaderboard()">✕</button>
+  <!-- ─── LEADERBOARD SCREEN (STANDALONE PAGE) ───────────────── -->
+  <div id="leaderboard-screen" class="scene leaderboard-page">
+    <div class="lb-page-header">
+      <button class="lb-back-btn" onclick="app.closeLeaderboard()">⬅ BACK TO MENU</button>
+      <div class="lb-page-title-group">
+        <h1 class="lb-page-title">🏆 GLOBAL RANKINGS</h1>
+        <p class="lb-page-subtitle">MAGSTRIKE MAGE SPELLCASTER HALL OF FAME</p>
+      </div>
+      <div class="lb-header-spacer"></div>
     </div>
-    <div class="leaderboard-content">
-      <div class="leaderboard-reward-banner">
-        FIRST RANK REWARD: <span class="gold-text">10,000 GOLD 🟡</span>
+
+    <div class="lb-page-container">
+      <!-- Top 3 Podium Cards -->
+      <div class="lb-podium" id="lb-podium">
+        <!-- JS injected top 3 mages -->
       </div>
-      <div class="leaderboard-list">
-        <div class="lb-row rank-1"><span class="lb-rank">#1</span><span class="lb-name">SHADOWMAGE</span><span class="lb-score">9,450 WPM</span></div>
-        <div class="lb-row rank-2"><span class="lb-rank">#2</span><span class="lb-name">GANDALF</span><span class="lb-score">8,200 WPM</span></div>
-        <div class="lb-row rank-3"><span class="lb-rank">#3</span><span class="lb-name">SPELLCASTER</span><span class="lb-score">7,100 WPM</span></div>
-        <div class="lb-row"><span class="lb-rank">#4</span><span class="lb-name">NOOB_WIZARD</span><span class="lb-score">3,050 WPM</span></div>
-        <div class="lb-row"><span class="lb-rank">#5</span><span class="lb-name">GUEST_007</span><span class="lb-score">1,200 WPM</span></div>
+
+      <!-- Main Leaderboard Data Table -->
+      <div class="lb-table-wrapper">
+        <div class="leaderboard-reward-banner">
+          👑 CHAMPION PRIZE: <span class="gold-text">10,000 GOLD 🟡</span> &nbsp;|&nbsp; SEASON 1 MAGE ARENA LEAGUE
+        </div>
+        <div class="lb-table-header">
+          <span class="lb-col-rank">RANK</span>
+          <span class="lb-col-player">MAGE SPELLCASTER</span>
+          <span class="lb-col-level">LEVEL</span>
+          <span class="lb-col-wpm">MAX WPM</span>
+          <span class="lb-col-gold">GOLD</span>
+        </div>
+        <div id="leaderboard-list" class="lb-table-body">
+          <!-- JS injected rows -->
+        </div>
       </div>
-      <div class="lb-disclaimer">* Rankings update every 24 hours. (Mock data for static site)</div>
     </div>
   </div>
 

@@ -24,6 +24,57 @@ const appState = {
   }
 };
 
+// ─── LEADERBOARD DATA SYSTEM ──────────────────────────────────────────────────
+const DEFAULT_LEADERBOARD = [
+  { id: 'bot_1', name: "SHADOWMAGE", avatar: "hero_pig", level: 42, wpm: 9450, gold: 28500, isPlayer: false },
+  { id: 'bot_2', name: "GANDALF_BLACK", avatar: "hero_bear", level: 38, wpm: 8200, gold: 19400, isPlayer: false },
+  { id: 'bot_3', name: "SPELL_KNIGHT", avatar: "hero_cat", level: 31, wpm: 7100, gold: 14200, isPlayer: false },
+  { id: 'bot_4', name: "VOID_CASTER", avatar: "hero_frog", level: 27, wpm: 6350, gold: 11000, isPlayer: false },
+  { id: 'bot_5', name: "RUNEMASTER", avatar: "hero_dog", level: 22, wpm: 5400, gold: 8900, isPlayer: false },
+  { id: 'bot_6', name: "NEO_WIZARD", avatar: "hero_chicken", level: 18, wpm: 4600, gold: 6500, isPlayer: false },
+  { id: 'bot_7', name: "NOOB_SPELLER", avatar: "avatar_1", level: 12, wpm: 3050, gold: 3200, isPlayer: false },
+  { id: 'bot_8', name: "GUEST_007", avatar: "avatar_2", level: 5, wpm: 1200, gold: 800, isPlayer: false }
+];
+
+function getLeaderboardData() {
+  let list = [];
+  const raw = localStorage.getItem('typing_battle_leaderboard');
+  if (raw) {
+    try {
+      list = JSON.parse(raw);
+    } catch(e) { list = []; }
+  }
+  if (!Array.isArray(list) || list.length === 0) {
+    list = JSON.parse(JSON.stringify(DEFAULT_LEADERBOARD));
+  }
+
+  // Find or insert player entry
+  const playerIndex = list.findIndex(item => item.isPlayer || item.id === 'local_player');
+  const playerData = {
+    id: 'local_player',
+    name: appState.playerName || 'SPELLCASTER',
+    avatar: appState.avatar || 'hero_pig',
+    level: appState.level || 1,
+    wpm: appState.wpmRecord || 0,
+    gold: appState.credits || 0,
+    isPlayer: true
+  };
+
+  if (playerIndex >= 0) {
+    playerData.wpm = Math.max(playerData.wpm, list[playerIndex].wpm || 0);
+    list[playerIndex] = playerData;
+  } else {
+    list.push(playerData);
+  }
+
+  // Sort descending by WPM
+  list.sort((a, b) => (b.wpm || 0) - (a.wpm || 0));
+
+  // Save back to local storage
+  localStorage.setItem('typing_battle_leaderboard', JSON.stringify(list));
+  return list;
+}
+
 // ─── LETTER-BURST COMBAT SYSTEM ──────────────────────────────────────────────
 // Input is now managed entirely by DualCombatScene.LetterBurst internally.
 // game.js only handles damage values, server sync, and UI HUD.
@@ -218,11 +269,66 @@ const app = {
   },
 
   openLeaderboard() {
-    document.getElementById('leaderboard-panel').classList.add('active');
+    this.changeScene('leaderboard-screen');
+    this.renderLeaderboard();
   },
 
   closeLeaderboard() {
-    document.getElementById('leaderboard-panel').classList.remove('active');
+    this.changeScene('lobby-screen');
+  },
+
+  renderLeaderboard() {
+    const list = getLeaderboardData();
+    const podiumEl = document.getElementById('lb-podium');
+    const tableEl = document.getElementById('leaderboard-list');
+
+    // Podium Top 3
+    const p1 = list[0] || { name: '—', wpm: 0, avatar: 'hero_pig', level: 1 };
+    const p2 = list[1] || { name: '—', wpm: 0, avatar: 'hero_cat', level: 1 };
+    const p3 = list[2] || { name: '—', wpm: 0, avatar: 'hero_bear', level: 1 };
+
+    if (podiumEl) {
+      podiumEl.innerHTML = `
+        <div class="podium-card rank-2">
+          <div class="podium-badge">🥈 #2</div>
+          <img class="podium-avatar" src="${this.getAvatarSrc(p2.avatar)}" onerror="this.src='assets/avatar_default.png'">
+          <div class="podium-name">${p2.name}</div>
+          <div class="podium-score">${p2.wpm} WPM</div>
+        </div>
+        <div class="podium-card rank-1">
+          <div class="podium-badge">👑 #1</div>
+          <img class="podium-avatar" src="${this.getAvatarSrc(p1.avatar)}" onerror="this.src='assets/avatar_default.png'">
+          <div class="podium-name">${p1.name}</div>
+          <div class="podium-score">${p1.wpm} WPM</div>
+        </div>
+        <div class="podium-card rank-3">
+          <div class="podium-badge">🥉 #3</div>
+          <img class="podium-avatar" src="${this.getAvatarSrc(p3.avatar)}" onerror="this.src='assets/avatar_default.png'">
+          <div class="podium-name">${p3.name}</div>
+          <div class="podium-score">${p3.wpm} WPM</div>
+        </div>
+      `;
+    }
+
+    if (tableEl) {
+      tableEl.innerHTML = list.map((item, idx) => {
+        const rankNum = idx + 1;
+        const rankClass = rankNum <= 3 ? `rank-${rankNum}` : '';
+        const myClass = item.isPlayer ? 'my-rank' : '';
+        return `
+          <div class="lb-row ${rankClass} ${myClass}">
+            <div class="lb-rank-num">#${rankNum}</div>
+            <div class="lb-col-player">
+              <img class="lb-row-avatar" src="${this.getAvatarSrc(item.avatar)}" onerror="this.src='assets/avatar_default.png'">
+              <span>${item.name} ${item.isPlayer ? '<span style="color:#3daeff; font-size:0.85rem; font-weight:900;">(YOU)</span>' : ''}</span>
+            </div>
+            <div class="lb-col-level">Lvl. ${item.level || 1}</div>
+            <div class="lb-col-wpm">${item.wpm || 0} WPM</div>
+            <div class="lb-col-gold">🟡 ${(item.gold || 0).toLocaleString()}</div>
+          </div>
+        `;
+      }).join('');
+    }
   },
 
   openSettings() {
