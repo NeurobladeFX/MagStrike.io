@@ -115,7 +115,7 @@ const app = {
   },
 
   getAvatarSrc(av) {
-    if (!av) return 'assets/avatar_default.png';
+    if (!av || av === 'undefined' || av === 'null') return 'assets/avatar_default.png';
     if (av.startsWith('data:image')) return av;
     return `assets/${av}.png`;
   },
