@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AAA 2D Stickman Sword Combat Showcase</title>
+  <style>
+    /* ── SYSTEM & PALETTE ── */
+    :root {
+      --bg-dark: #08090d;
+      --grid-line: rgba(0, 212, 255, 0.08);
+      --glow-blue: #00d4ff;
+      --glow-red: #ff2a5f;
+      --stickman-color: #ffffff;
+      --katana-steel: linear-gradient(135deg, #e6f7ff 0%, #a3c2c2 50%, #ffffff 100%);
+      
+      /* Bone Length Variables */
+      --head-size: 36px;
+      --torso-len: 65px;
+      --pelvis-w: 22px;
+      --upper-arm-len: 42px;
+      --forearm-len: 40px;
+      --thigh-len: 48px;
+      --shin-len: 48px;
+      --foot-len: 22px;
+      --sword-len: 75px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-dark);
+      color: #fff;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── CANVAS ARENA & BACKGROUND GRID ── */
+    .arena {
+      position: relative;
+      width: 1000px;
+      height: 600px;
+      background: radial-gradient(circle at 50% 40%, #121826 0%, #06080c 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 0 0 100px rgba(0,212,255,0.05);
+      overflow: hidden;
+    }
+
+    .grid-floor {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 200px;
+      background: linear-gradient(to bottom, transparent, rgba(0, 212, 255, 0.05));
+      border-top: 2px solid var(--glow-blue);
+      box-shadow: 0 0 20px var(--glow-blue);
+    }
+
+    .shadow-drop {
+      position: absolute;
+      bottom: 110px;
+      left: 500px;
+      width: 80px;
+      height: 16px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 50%;
+      transform: translateX(-50%);
+      filter: blur(4px);
+      animation: shadowMove 12s infinite cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ── STICKMAN ANATOMY STRUCTURE ── */
+    .stickman {
+      position: absolute;
+      bottom: 115px;
+      left: 500px;
+      transform-origin: bottom center;
+      animation: masterCombo 12s infinite cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Common Bone Style */
+    .bone {
+      position: absolute;
+      background: var(--stickman-color);
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+    }
+
+    /* Pelvis & Root */
+    .pelvis {
+      width: var(--pelvis-w);
+      height: 8px;
+      top: -96px;
+      left: calc(var(--pelvis-w) / -2);
+      transform-origin: center center;
+    }
+
+    /* Torso & Neck & Head */
+    .torso {
+      width: 8px;
+      height: var(--torso-len);
+      bottom: 4px;
+      left: calc(50% - 4px);
+      transform-origin: bottom center;
+    }
+
+    .neck {
+      width: 6px;
+      height: 14px;
+      top: -12px;
+      left: 1px;
+      transform-origin: bottom center;
+    }
+
+    .head {
+      width: var(--head-size);
+      height: var(--head-size);
+      top: -34px;
+      left: calc(50% - (var(--head-size) / 2));
+      border-radius: 50%;
+      background: var(--stickman-color);
+      box-shadow: 0 0 15px var(--glow-blue);
+    }
+    .head::after {
+      content: '';
+      position: absolute;
+      top: 10px;
+      right: 6px;
+      width: 6px;
+      height: 6px;
+      background: #00d4ff;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00d4ff;
+    }
+
+    /* Limbs & Joint Transform Origins */
+    .thigh {
+      width: 7px;
+      height: var(--thigh-len);
+      top: 4px;
+      transform-origin: top center;
+    }
+    .thigh.left { left: 0; }
+    .thigh.right { right: 0; }
+
+    .shin {
+      width: 6px;
+      height: var(--shin-len);
+      top: calc(var(--thigh-len) - 2px);
+      left: 0.5px;
+      transform-origin: top center;
+    }
+
+    .foot {
+      width: var(--foot-len);
+      height: 6px;
+      top: calc(var(--shin-len) - 2px);
+      left: -2px;
+      transform-origin: left center;
+    }
+
+    /* Arms */
+    .arm {
+      width: 7px;
+      height: var(--upper-arm-len);
+      top: 4px;
+      transform-origin: top center;
+    }
+    .arm.left { left: -2px; }
+    .arm.right { right: -2px; }
+
+    .forearm {
+      width: 6px;
+      height: var(--forearm-len);
+      top: calc(var(--upper-arm-len) - 2px);
+      left: 0.5px;
+      transform-origin: top center;
+    }
+
+    /* Single / Two-Hand Katana Weapon */
+    .katana {
+      position: absolute;
+      bottom: -4px;
+      left: calc(50% - 3px);
+      width: 6px;
+      height: var(--sword-len);
+      transform-origin: bottom center;
+      background: #111;
+      border-radius: 3px;
+    }
+
+    .katana .tsuba {
+      position: absolute;
+      bottom: 18px;
+      left: -5px;
+      width: 16px;
+      height: 4px;
+      background: #ffd700;
+      box-shadow: 0 0 8px #ffd700;
+      border-radius: 2px;
+    }
+
+    .katana .blade {
+      position: absolute;
+      bottom: 22px;
+      left: 1px;
+      width: 4px;
+      height: 52px;
+      background: var(--katana-steel);
+      border-radius: 2px 2px 0 0;
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.8), 0 0 20px #ffffff;
+    }
+
+    /* ── MASTER 60-STAGE CHOREOGRAPHY KEYFRAMES ── */
+    @keyframes shadowMove {
+      0%, 100% { transform: translateX(-50%) scaleX(1); opacity: 0.7; }
+      15% { transform: translateX(120px) scaleX(1.4); opacity: 0.9; }
+      30% { transform: translateX(-40px) scaleX(0.8); opacity: 0.6; }
+      45% { transform: translateX(180px) scaleX(1.6); opacity: 0.95; }
+      60% { transform: translateX(0px) scaleY(0.4) scaleX(1.2); opacity: 0.3; } /* Jump */
+      75% { transform: translateX(90px) scaleX(1.3); opacity: 0.8; }
+    }
+
+    @keyframes masterCombo {
+      /* 0-5%: Upright Balanced Idle Stance (Micro 1px breathing rise and fall) */
+      0%, 100% { transform: translateX(0) translateY(0) rotate(0deg); }
+      3% { transform: translateX(0) translateY(-1.5px) rotate(0.5deg); }
+      5% { transform: translateX(-5px) translateY(0) rotate(-1deg); }
+
+      /* 6-12%: Horizontal Slash Windup & Lunge */
+      8% { transform: translateX(-25px) translateY(2px) rotate(-6deg); }
+      12% { transform: translateX(140px) translateY(1px) rotate(4deg); }
+
+      /* 13-20%: Step & Reverse Slash */
+      16% { transform: translateX(110px) translateY(0) rotate(-3deg); }
+      20% { transform: translateX(200px) translateY(2px) rotate(6deg); }
+
+      /* 21-30%: Overhead Strike & Impact */
+      24% { transform: translateX(170px) translateY(-8px) rotate(-10deg); }
+      28% { transform: translateX(240px) translateY(3px) rotate(12deg); }
+
+      /* 31-42%: Spin Attack Sequence */
+      34% { transform: translateX(190px) translateY(0) rotate(-180deg); }
+      38% { transform: translateX(260px) translateY(0) rotate(-360deg); }
+
+      /* 43-52%: Backstep & Forward Thrust */
+      44% { transform: translateX(180px) translateY(1px) rotate(-4deg); }
+      48% { transform: translateX(320px) translateY(0) rotate(3deg); }
+
+      /* 53-68%: Jump Attack & Landing */
+      54% { transform: translateX(280px) translateY(-140px) rotate(-15deg); }
+      60% { transform: translateX(340px) translateY(-120px) rotate(20deg); }
+      64% { transform: translateX(360px) translateY(4px) rotate(6deg); } /* Subtle compression */
+
+      /* 69-82%: Low Sweep & Uppercut */
+      72% { transform: translateX(320px) translateY(4px) rotate(-20deg); }
+      78% { transform: translateX(380px) translateY(-30px) rotate(25deg); }
+
+      /* 83-95%: Final Heavy Overhead Finisher */
+      86% { transform: translateX(340px) translateY(-15px) rotate(-18deg); }
+      90% { transform: translateX(420px) translateY(2px) rotate(12deg); }
+
+      /* 96-100%: Recovery to Idle */
+      96% { transform: translateX(100px) translateY(0) rotate(1deg); }
+    }
+
+    /* Sub-part Keyframe Animations for Natural Overlapping Physics */
+    .torso { animation: torsoPhysics 12s infinite ease-in-out; }
+    .arm.right { animation: rightArmPhysics 12s infinite ease-in-out; }
+    .forearm.right { animation: rightForearmPhysics 12s infinite ease-in-out; }
+    .arm.left { animation: leftArmPhysics 12s infinite ease-in-out; }
+    .katana { animation: katanaPhysics 12s infinite ease-in-out; }
+
+    @keyframes torsoPhysics {
+      0%, 100% { transform: rotate(4deg); }
+      8% { transform: rotate(-12deg); }
+      12% { transform: rotate(18deg); }
+      28% { transform: rotate(24deg); }
+      54% { transform: rotate(-15deg); }
+      64% { transform: rotate(30deg); }
+      90% { transform: rotate(28deg); }
+    }
+
+    @keyframes rightArmPhysics {
+      0%, 100% { transform: rotate(-25deg); }
+      8% { transform: rotate(-80deg); }
+      12% { transform: rotate(85deg); }
+      24% { transform: rotate(-140deg); }
+      28% { transform: rotate(45deg); }
+      54% { transform: rotate(-160deg); }
+      60% { transform: rotate(95deg); }
+      90% { transform: rotate(70deg); }
+    }
+
+    @keyframes rightForearmPhysics {
+      0%, 100% { transform: rotate(-15deg); }
+      8% { transform: rotate(-60deg); }
+      12% { transform: rotate(10deg); }
+      24% { transform: rotate(-40deg); }
+      28% { transform: rotate(80deg); }
+      90% { transform: rotate(20deg); }
+    }
+
+    @keyframes leftArmPhysics {
+      0%, 100% { transform: rotate(30deg); }
+      12% { transform: rotate(-90deg); } /* Flung back for 1-hand balance */
+      28% { transform: rotate(-75deg); }
+      48% { transform: rotate(-110deg); }
+      90% { transform: rotate(-85deg); }
+    }
+
+    @keyframes katanaPhysics {
+      0%, 100% { transform: rotate(-45deg); }
+      8% { transform: rotate(-110deg); }
+      12% { transform: rotate(90deg); }
+      24% { transform: rotate(-170deg); }
+      28% { transform: rotate(75deg); }
+      54% { transform: rotate(-180deg); }
+      60% { transform: rotate(110deg); }
+      90% { transform: rotate(85deg); }
+    }
+
+    /* ── UI PLAYBACK CONTROLS ── */
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      background: rgba(255,255,255,0.05);
+      padding: 12px 24px;
+      border-radius: 30px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    button {
+      background: #00d4ff;
+      color: #000;
+      border: none;
+      padding: 8px 18px;
+      font-weight: 700;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover { background: #66e5ff; transform: scale(1.05); }
+
+    .status { font-size: 14px; letter-spacing: 1px; color: #a0aec0; }
+  </style>
+</head>
+<body>
+
+  <div class="arena">
+    <div class="grid-floor"></div>
+    <div class="shadow-drop" id="shadow"></div>
+
+    <!-- PURE HTML STICKMAN ANATOMY -->
+    <div class="stickman" id="hero">
+      <div class="pelvis bone">
+        <!-- Legs -->
+        <div class="thigh left bone">
+          <div class="shin bone">
+            <div class="foot bone"></div>
+          </div>
+        </div>
+        <div class="thigh right bone">
+          <div class="shin bone">
+            <div class="foot bone"></div>
+          </div>
+        </div>
+
+        <!-- Upper Body -->
+        <div class="torso bone">
+          <div class="neck bone">
+            <div class="head"></div>
+          </div>
+
+          <!-- Arms -->
+          <div class="arm left bone">
+            <div class="forearm bone"></div>
+          </div>
+          <div class="arm right bone">
+            <div class="forearm bone">
+              <!-- One-Handed Katana -->
+              <div class="katana">
+                <div class="tsuba"></div>
+                <div class="blade"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="btnPlay">PAUSE</button>
+    <button id="btnSpeed">SPEED: 1x</button>
+    <div class="status" id="phaseStatus">CHOREOGRAPHY: ONE-HANDED MASTER KENJUTSU COMBO</div>
+  </div>
+
+  <script>
+    const hero = document.getElementById('hero');
+    const shadow = document.getElementById('shadow');
+    const btnPlay = document.getElementById('btnPlay');
+    const btnSpeed = document.getElementById('btnSpeed');
+    const phaseStatus = document.getElementById('phaseStatus');
+
+    let isPlaying = true;
+    let currentSpeed = 1;
+    const speeds = [0.5, 1, 1.5, 2];
+    let speedIdx = 1;
+
+    btnPlay.addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      const state = isPlaying ? 'running' : 'paused';
+      hero.style.animationPlayState = state;
+      shadow.style.animationPlayState = state;
+      btnPlay.textContent = isPlaying ? 'PAUSE' : 'PLAY';
+    });
+
+    btnSpeed.addEventListener('click', () => {
+      speedIdx = (speedIdx + 1) % speeds.length;
+      currentSpeed = speeds[speedIdx];
+      const duration = (12 / currentSpeed) + 's';
+      hero.style.animationDuration = duration;
+      shadow.style.animationDuration = duration;
+      btnSpeed.textContent = `SPEED: ${currentSpeed}x`;
+    });
+  </script>
+
+</body>
+</html>

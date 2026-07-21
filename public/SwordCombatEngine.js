@@ -1,16 +1,13 @@
 /**
- * SwordCombatEngine.js  v3.0 — MagStrike
+ * SwordCombatEngine.js (Mage Combat Engine)  v4.0 — MagStrike
  * ─────────────────────────────────────────────────────────────────────────────
- *
- * KEY FIXES v3:
- *  • Strict GROUND_Y anchoring — feet are always ON the floor line.
- *  • Poses defined as offsets FROM ground upward (foot = 0, head = -H).
- *  • Letter Conveyor Belt driven by DOM <div id="letter-belt"> with CSS tiles.
- *  • Solid filled stickmen — capsule bodies, filled circles for head/joints.
- *  • RealisticWeapon: ctx.drawImage katana PNG with per-frame rotation/pivot.
- *  • 10 named combat animations with grounded foot positions.
- *  • VFX: motion-blur sword trail, spark particles, slash arcs, screen-shake.
- *
+ * MAGE SPELL COMBAT ENGINE:
+ *  • Stickman Mage bodies: default solid BLACK silhouette.
+ *  • Hand Magic Light VFX: Pulsing glowing elemental magic light on both hands.
+ *  • Alternating Hand Cast Animations: Attacks alternate between Right & Left hand.
+ *  • Word Projectiles: Glowing letter/word projectiles ("K", "S", "T") hurled from hands.
+ *  • Arena & Platform: background.jpg arena with black silhouette land platform.
+ *  • Interactive Belt UI: Clickable bottom word tiles & keyboard support.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -18,327 +15,263 @@
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-const BELT_SIZE   = 6;          // number of tiles in the conveyor belt
-const LETTER_POOL = 'ASDFJKLQWERTYUIOPZXCVBNM'; // keyboard-layout biased
+const BELT_SIZE = 6;
+const LETTER_POOL = ['K', 'S', 'T', 'A', 'M', 'R', 'P', 'X', 'Z', 'V', 'N', 'B', 'W', 'D'];
 
 // ─── MATH UTILS ───────────────────────────────────────────────────────────────
 
-const L = (a, b, t)  => a + (b - a) * t;                           // lerp
+const L = (a, b, t) => a + (b - a) * t;                           // lerp
 const C = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;            // clamp
-const R = (lo, hi)   => lo + Math.random() * (hi - lo);            // rand
-const RI = (lo, hi)  => Math.floor(R(lo, hi + 1));                 // rand int
-const easeOut  = t   => 1 - (1 - t) * (1 - t);
-const easeInOut = t  => t < .5 ? 2*t*t : 1-((-2*t+2)**2)/2;
+const R = (lo, hi) => lo + Math.random() * (hi - lo);            // rand
+const RI = (lo, hi) => Math.floor(R(lo, hi + 1));                 // rand int
 
-function vLerp(a, b, t) { return { x: L(a.x,b.x,t), y: L(a.y,b.y,t) }; }
+const easeOutQuad = t => t * (2 - t);
+const easeInOutSine = t => -(Math.cos(Math.PI * t) - 1) / 2;
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 
-// ─── POSE SYSTEM ──────────────────────────────────────────────────────────────
-//
-// Coordinates are LOCAL offsets relative to the stickman's root point.
-// root = { x: worldX,  y: GROUND_Y }
-//
-// IMPORTANT: footR.y and footL.y MUST equal 0 in every grounded pose.
-// Upward = negative Y.   The root sits exactly on GROUND_Y.
-//
-// Joint keys:
-//   head, neck, shoulder,
-//   elbowR, wristR,   elbowL, wristL,
-//   hipR, kneeR, footR,
-//   hipL, kneeL, footL,
-//   swordPivot (= wristR in most poses),
-//   swordTip   (direction the blade points from pivot)
+function vLerp(a, b, t) { return { x: L(a.x, b.x, t), y: L(a.y, b.y, t) }; }
+
+// ─── MAGE POSES SYSTEM ────────────────────────────────────────────────────────
 
 const POSES = {
+  // ── Clean Upright Standing Rest Position (Arms down) ──
   IdleStance: {
-    root: {x: 0, y: 0},
-    head:       {x: 0, y: -240}, neck: {x: 0, y: -210}, shoulder: {x: 0, y: -195},
-    elbowR:     {x: 35, y: -170}, wristR: {x: 55, y: -145},
-    elbowL:     {x: -30, y: -170}, wristL: {x: -45, y: -140},
-    hipR:       {x: 15, y: -110}, kneeR: {x: 20, y: -55}, footR: {x: 25, y: 0},
-    hipL:       {x: -15, y: -110}, kneeL: {x: -20, y: -55}, footL: {x: -25, y: 0},
-    swordPivot: {x: 55, y: -145}, swordTip: {x: 110, y: -170},
+    root: { x: 0, y: 0 },
+    head: { x: 0, y: -180 }, neck: { x: 0, y: -160 }, shoulder: { x: 0, y: -145 },
+    elbowR: { x: 15, y: -100 }, wristR: { x: 20, y: -50 },
+    elbowL: { x: -15, y: -100 }, wristL: { x: -20, y: -50 },
+    hipR: { x: 8, y: -80 }, kneeR: { x: 10, y: -40 }, footR: { x: 12, y: 0 },
+    hipL: { x: -8, y: -80 }, kneeL: { x: -10, y: -40 }, footL: { x: -12, y: 0 }
   },
-  HorizontalLunge: {
-    root: {x: 120, y: 0}, 
-    head:       {x: 60, y: -218}, neck: {x: 48, y: -194}, shoulder: {x: 30, y: -180},
-    elbowR:     {x: 100, y: -182}, wristR: {x: 162, y: -184},
-    elbowL:     {x: 2, y: -158}, wristL: {x: -18, y: -130},
-    hipR:       {x: 38, y: -110}, kneeR: {x: 82, y: -62}, footR: {x: 125, y: 0},
-    hipL:       {x: -22, y: -110}, kneeL: {x: -52, y: -66}, footL: {x: -82, y: 0},
-    swordPivot: {x: 162, y: -184}, swordTip: {x: 280, y: -184},
+
+  // ── Fight Stance (Fists up, ready) ──
+  FightStance: {
+    root: { x: 0, y: 15 }, 
+    head: { x: 15, y: -160 }, neck: { x: 5, y: -140 }, shoulder: { x: 0, y: -130 },
+    elbowR: { x: 25, y: -100 }, wristR: { x: 65, y: -120 }, // Front arm ready to strike
+    elbowL: { x: -25, y: -100 }, wristL: { x: -15, y: -130 }, // Back arm guarding face
+    hipR: { x: 15, y: -65 }, kneeR: { x: 25, y: -30 }, footR: { x: 20, y: 15 }, // Wide stance front
+    hipL: { x: -15, y: -65 }, kneeL: { x: -25, y: -30 }, footL: { x: -20, y: 15 } // Wide stance back
   },
-  OverheadCleave: {
-    root: {x: 40, y: 0}, 
-    head:       {x: 12, y: -242}, neck: {x: 8, y: -214}, shoulder: {x: 5, y: -198},
-    elbowR:     {x: 42, y: -265}, wristR: {x: 60, y: -305},
-    elbowL:     {x: 18, y: -245}, wristL: {x: 35, y: -290},
-    hipR:       {x: 22, y: -110}, kneeR: {x: 28, y: -55}, footR: {x: 35, y: 0},
-    hipL:       {x: -18, y: -110}, kneeL: {x: -22, y: -55}, footL: {x: -26, y: 0},
-    swordPivot: {x: 60, y: -305}, swordTip: {x: 62, y: -120},
+
+  // ── Right Hand Letter Throw (Snappy whip forward) ──
+  RightHandCast_Windup: {
+    root: { x: -5, y: 0 },
+    head: { x: -5, y: -180 }, neck: { x: -5, y: -160 }, shoulder: { x: -5, y: -145 },
+    elbowR: { x: -10, y: -110 }, wristR: { x: -25, y: -150 }, // Arm pulled back!
+    elbowL: { x: -15, y: -100 }, wristL: { x: -20, y: -50 },
+    hipR: { x: 8, y: -80 }, kneeR: { x: 10, y: -40 }, footR: { x: 12, y: 0 },
+    hipL: { x: -8, y: -80 }, kneeL: { x: -10, y: -40 }, footL: { x: -12, y: 0 }
   },
-  SpinSlash: {
-    root: {x: 80, y: 0},
-    head:       {x: -10, y: -238}, neck: {x: -6, y: -209}, shoulder: {x: -4, y: -193},
-    elbowR:     {x: 90, y: -193}, wristR: {x: 145, y: -192},
-    elbowL:     {x: -80, y: -193}, wristL: {x: -130, y: -190},
-    hipR:       {x: 20, y: -110}, kneeR: {x: 50, y: -50}, footR: {x: 75, y: 0},
-    hipL:       {x: -20, y: -110}, kneeL: {x: -10, y: -45}, footL: {x: 0, y: 0},
-    swordPivot: {x: 145, y: -192}, swordTip: {x: 245, y: -192},
+  RightHandCast_Strike: {
+    root: { x: 15, y: 0 },
+    head: { x: 25, y: -170 }, neck: { x: 20, y: -155 }, shoulder: { x: 15, y: -145 },
+    elbowR: { x: 65, y: -130 }, wristR: { x: 115, y: -130 }, // Thrust arm straight forward, extended
+    elbowL: { x: -25, y: -110 }, wristL: { x: -40, y: -70 }, // Pull back other arm for momentum
+    hipR: { x: 20, y: -80 }, kneeR: { x: 25, y: -40 }, footR: { x: 30, y: 0 },
+    hipL: { x: -15, y: -80 }, kneeL: { x: -20, y: -40 }, footL: { x: -25, y: 0 }
   },
-  RisingCrescent: {
-    root: {x: 30, y: 0},
-    head:       {x: 18, y: -234}, neck: {x: 14, y: -207}, shoulder: {x: 10, y: -192},
-    elbowR:     {x: 20, y: -130}, wristR: {x: 30, y: -82},
-    elbowL:     {x: -22, y: -170}, wristL: {x: -38, y: -140},
-    hipR:       {x: 25, y: -110}, kneeR: {x: 40, y: -58}, footR: {x: 50, y: 0},
-    hipL:       {x: -18, y: -110}, kneeL: {x: -30, y: -60}, footL: {x: -40, y: 0},
-    swordPivot: {x: 30, y: -82}, swordTip: {x: 140, y: -220},
+
+  // ── Left Hand Letter Throw (Snappy whip forward) ──
+  LeftHandCast_Windup: {
+    root: { x: -5, y: 0 },
+    head: { x: -5, y: -180 }, neck: { x: -5, y: -160 }, shoulder: { x: -5, y: -145 },
+    elbowR: { x: 15, y: -100 }, wristR: { x: 20, y: -50 },
+    elbowL: { x: -10, y: -110 }, wristL: { x: -25, y: -150 }, // Arm pulled back!
+    hipR: { x: 8, y: -80 }, kneeR: { x: 10, y: -40 }, footR: { x: 12, y: 0 },
+    hipL: { x: -8, y: -80 }, kneeL: { x: -10, y: -40 }, footL: { x: -12, y: 0 }
   },
-  LowBlock: {
-    root: {x: 0, y: 0},
-    head:       {x: 5, y: -180}, neck: {x: 3, y: -158}, shoulder: {x: 2, y: -145},
-    elbowR:     {x: 40, y: -128}, wristR: {x: 62, y: -112},
-    elbowL:     {x: -28, y: -130}, wristL: {x: -50, y: -114},
-    hipR:       {x: 30, y: -80}, kneeR: {x: 55, y: -42}, footR: {x: 70, y: 0},
-    hipL:       {x: -26, y: -80}, kneeL: {x: -48, y: -42}, footL: {x: -62, y: 0},
-    swordPivot: {x: 62, y: -112}, swordTip: {x: 140, y: -60},
+  LeftHandCast_Strike: {
+    root: { x: 15, y: 0 },
+    head: { x: 25, y: -170 }, neck: { x: 20, y: -155 }, shoulder: { x: 15, y: -145 },
+    elbowR: { x: -25, y: -110 }, wristR: { x: -40, y: -70 }, // Pull back other arm for momentum
+    elbowL: { x: 65, y: -130 }, wristL: { x: 115, y: -130 }, // Thrust arm straight forward, extended
+    hipR: { x: 20, y: -80 }, kneeR: { x: 25, y: -40 }, footR: { x: 30, y: 0 },
+    hipL: { x: -15, y: -80 }, kneeL: { x: -20, y: -40 }, footL: { x: -25, y: 0 }
   },
-  HighParry: {
-    root: {x: -10, y: 0},
-    head:       {x: -5, y: -238}, neck: {x: -3, y: -209}, shoulder: {x: -2, y: -193},
-    elbowR:     {x: 50, y: -230}, wristR: {x: 72, y: -262},
-    elbowL:     {x: -20, y: -210}, wristL: {x: -38, y: -240},
-    hipR:       {x: 20, y: -110}, kneeR: {x: 30, y: -55}, footR: {x: 38, y: 0},
-    hipL:       {x: -18, y: -110}, kneeL: {x: -25, y: -55}, footL: {x: -32, y: 0},
-    swordPivot: {x: 72, y: -262}, swordTip: {x: 110, y: -320},
-  },
+
+  // ── Defensive & Reaction Poses ──
   DashRetreat: {
-    root: {x: -60, y: 0},
-    head:       {x: -45, y: -232}, neck: {x: -35, y: -205}, shoulder: {x: -25, y: -190},
-    elbowR:     {x: 15, y: -170}, wristR: {x: 40, y: -148},
-    elbowL:     {x: -60, y: -168}, wristL: {x: -82, y: -145},
-    hipR:       {x: -10, y: -110}, kneeR: {x: -15, y: -55}, footR: {x: -18, y: 0},
-    hipL:       {x: 10, y: -110}, kneeL: {x: 55, y: -60}, footL: {x: 90, y: 0},
-    swordPivot: {x: 40, y: -148}, swordTip: {x: 90, y: -172},
-  },
-  ForwardRoll: {
-    root: {x: 150, y: -30}, 
-    head:       {x: 50, y: -80}, neck: {x: 35, y: -65}, shoulder: {x: 20, y: -52},
-    elbowR:     {x: 15, y: -20}, wristR: {x: 22, y: 5},
-    elbowL:     {x: -5, y: -25}, wristL: {x: -8, y: -2},
-    hipR:       {x: 10, y: -12}, kneeR: {x: -5, y: 25}, footR: {x: -18, y: 50},
-    hipL:       {x: -8, y: -18}, kneeL: {x: 25, y: 18}, footL: {x: 45, y: 42},
-    swordPivot: {x: 22, y: 5}, swordTip: {x: 80, y: 0},
-  },
-  DecapitationSwing: {
-    root: {x: 90, y: 0},
-    head:       {x: 25, y: -228}, neck: {x: 20, y: -203}, shoulder: {x: 14, y: -188},
-    elbowR:     {x: 120, y: -200}, wristR: {x: 195, y: -202},
-    elbowL:     {x: 105, y: -196}, wristL: {x: 175, y: -198},
-    hipR:       {x: 30, y: -110}, kneeR: {x: 60, y: -60}, footR: {x: 90, y: 0},
-    hipL:       {x: -28, y: -110}, kneeL: {x: -50, y: -62}, footL: {x: -80, y: 0},
-    swordPivot: {x: 195, y: -202}, swordTip: {x: 320, y: -204},
+    root: { x: -20, y: 0 },
+    head: { x: -10, y: -176 }, neck: { x: -8, y: -156 }, shoulder: { x: -5, y: -142 },
+    elbowR: { x: 15, y: -120 }, wristR: { x: 28, y: -130 },
+    elbowL: { x: -25, y: -120 }, wristL: { x: -38, y: -130 },
+    hipR: { x: 8, y: -78 }, kneeR: { x: 10, y: -39 }, footR: { x: 12, y: 0 },
+    hipL: { x: -16, y: -78 }, kneeL: { x: -18, y: -39 }, footL: { x: -20, y: 0 }
   },
   Collapse: {
-    root: {x: -40, y: 0},
-    head:       {x: -120, y: -30}, neck: {x: -100, y: -20}, shoulder: {x: -80, y: -15},
-    elbowR:     {x: -40, y: -5}, wristR: {x: -10, y: -2},
-    elbowL:     {x: -60, y: -10}, wristL: {x: -30, y: -5},
-    hipR:       {x: 20, y: -10}, kneeR: {x: 60, y: -15}, footR: {x: 100, y: 0},
-    hipL:       {x: 10, y: -5}, kneeL: {x: 40, y: -10}, footL: {x: 80, y: 0},
-    swordPivot: {x: -10, y: -2}, swordTip: {x: 60, y: 5},
+    root: { x: -30, y: 0 },
+    head: { x: -90, y: -16 }, neck: { x: -74, y: -14 }, shoulder: { x: -56, y: -12 },
+    elbowR: { x: -20, y: -8 }, wristR: { x: 8, y: -4 },
+    elbowL: { x: -40, y: -8 }, wristL: { x: -20, y: -4 },
+    hipR: { x: 15, y: -10 }, kneeR: { x: 45, y: -10 }, footR: { x: 75, y: 0 },
+    hipL: { x: 8, y: -6 }, kneeL: { x: 32, y: -6 }, footL: { x: 60, y: 0 }
   }
 };
 
-const ATTACK_NAMES = Object.keys(POSES).filter(n => n !== 'IdleStance' && n !== 'Collapse');
+// ─── WORD PROJECTILE CLASS ───────────────────────────────────────────────────
 
-// High-velocity = triggers screen shake + more VFX
-const IS_HIGH_VEL = {
-  SpinSlash: true, OverheadCleave: true, DecapitationSwing: true,
-};
-
-// ─── REALISTIC WEAPON ─────────────────────────────────────────────────────────
-
-class RealisticWeapon {
-  /**
-   * @param {string}  src        - path to katana PNG
-   * @param {number}  bladeLen   - total drawn length (px)
-   * @param {number}  gripLen    - distance from image left edge to grip centre
-   */
-  constructor(src, bladeLen = 260, gripLen = 48) {
-    this.bladeLen = bladeLen;
-    this.gripLen  = gripLen;
-
-    this._img   = new Image();
-    this._ready = false;
-    this._img.onload  = () => { this._ready = true; };
-    this._img.onerror = () => console.warn('[Weapon] PNG not found – using fallback');
-    this._img.src     = src;
-
-    // Trail buffer: array of {px, py, angle, life}
-    this._trail    = [];
-    this._trailMax = 12;
+class WordProjectile {
+  constructor(startX, startY, targetX, targetY, word, color, owner, onHit) {
+    this.startX = startX;
+    this.startY = startY;
+    this.x = startX;
+    this.y = startY;
+    this.targetX = targetX;
+    this.targetY = targetY;
+    this.word = word;
+    this.color = color;
+    this.owner = owner;
+    this.onHit = onHit;
+    this.progress = 0;
+    this.speed = 2.6; // Travel speed (~0.35s flight time)
+    this.dead = false;
+    this.trail = [];
   }
 
-  /**
-   * Draw the weapon each frame.
-   * @param {CanvasRenderingContext2D} ctx
-   * @param {number} px, py    – world coords of grip joint
-   * @param {number} tx, ty    – world coords of sword tip direction
-   * @param {boolean} trail    – show motion blur trail?
-   * @param {boolean} glow     – attack glow?
-   */
-  draw(ctx, px, py, tx, ty, trail, glow) {
-    const angle = Math.atan2(ty - py, tx - px);
+  update(dt) {
+    if (this.dead) return;
+    this.progress += dt * this.speed;
 
-    // Push to trail
-    if (trail) {
-      this._trail.unshift({ px, py, angle, life: 0.7 });
-      if (this._trail.length > this._trailMax) this._trail.pop();
+    if (this.progress >= 1) {
+      this.progress = 1;
+      this.x = this.targetX;
+      this.y = this.targetY;
+      this.dead = true;
+      if (this.onHit) this.onHit(this.x, this.y);
+      return;
     }
 
-    // Decay & draw trail frames (back to front)
-    for (let i = this._trail.length - 1; i >= 0; i--) {
-      const tr = this._trail[i];
-      tr.life *= 0.78;
-      if (tr.life < 0.02) { this._trail.splice(i, 1); continue; }
-      ctx.save();
-      ctx.globalAlpha = tr.life * (1 - i / this._trailMax);
-      ctx.translate(tr.px, tr.py);
-      ctx.rotate(tr.angle);
-      this._blade(ctx, false, 0.28);
-      ctx.restore();
-    }
+    // Straight path
+    this.x = L(this.startX, this.targetX, this.progress);
+    this.y = L(this.startY, this.targetY, this.progress);
 
-    // Main sword
+    // Trail particles
+    this.trail.unshift({ x: this.x, y: this.y, life: 1.0 });
+    if (this.trail.length > 15) this.trail.pop();
+    this.trail.forEach(t => t.life -= dt * 3.0);
+  }
+
+  draw(ctx) {
+    if (this.dead) return;
+
+    // Draw glowing trail
     ctx.save();
-    ctx.translate(px, py);
-    ctx.rotate(angle);
-    this._blade(ctx, glow, 1.0);
-    ctx.restore();
-  }
-
-  _blade(ctx, glow, alpha) {
-    ctx.globalAlpha = alpha;
-    const w = this.bladeLen;
-    const ox = -this.gripLen;   // left offset so grip is at origin
-
-    if (this._ready) {
-      const h = (this._img.naturalHeight / this._img.naturalWidth) * w;
-      if (glow) { ctx.shadowColor = '#88ccff'; ctx.shadowBlur = 24; }
-      ctx.drawImage(this._img, ox, -h / 2, w, h);
-    } else {
-      // Fallback canvas katana
-      const grip = this.gripLen;
-
-      // Handle wrap
-      ctx.fillStyle = '#1a0d06';
-      ctx.beginPath(); ctx.roundRect(ox, -5, grip * 0.6, 10, 3); ctx.fill();
-
-      // Tsuba guard
-      ctx.fillStyle = '#999';
-      ctx.beginPath(); ctx.ellipse(ox + grip*0.62, 0, 9, 15, 0, 0, Math.PI*2); ctx.fill();
-
-      // Blade gradient
-      ctx.save();
-      const g = ctx.createLinearGradient(ox + grip*0.7, -4, ox + w, 0);
-      g.addColorStop(0, '#ccc'); g.addColorStop(0.45, '#f4f4f4'); g.addColorStop(1, '#e0e0e0');
-      ctx.fillStyle = g;
-      if (glow) { ctx.shadowColor = '#b0d8ff'; ctx.shadowBlur = 20; }
+    for (let i = 0; i < this.trail.length; i++) {
+      const t = this.trail[i];
+      if (t.life <= 0) continue;
+      ctx.globalAlpha = t.life * 0.65;
+      ctx.fillStyle = this.color;
+      ctx.shadowColor = this.color;
+      ctx.shadowBlur = 15;
       ctx.beginPath();
-      ctx.moveTo(ox + grip*0.7, -4);
-      ctx.lineTo(ox + w,          0);
-      ctx.lineTo(ox + grip*0.7,   4);
-      ctx.closePath(); ctx.fill();
-      ctx.restore();
+      ctx.arc(t.x, t.y, 10 * t.life, 0, Math.PI * 2);
+      ctx.fill();
     }
+    ctx.restore();
 
-    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    // Render word text glowing brightly as the projectile
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    
+    // Add dynamic spinning physics for the letter!
+    ctx.rotate(this.progress * Math.PI * 8 * (this.owner === 'p1' ? 1 : -1));
+
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 48px "Outfit", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Draw text with outline for better readability
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 3;
+    ctx.strokeText(this.word, 0, 0);
+    ctx.fillText(this.word, 0, 0);
+
+    ctx.restore();
   }
 }
 
 // ─── VFX PARTICLES ────────────────────────────────────────────────────────────
 
 class Spark {
-  constructor(x, y, power) {
-    const a = R(0, Math.PI*2), s = R(3, 12) * (0.5 + power);
-    this.x=x; this.y=y;
-    this.vx=Math.cos(a)*s; this.vy=Math.sin(a)*s - R(1,4);
-    this.life=1; this.decay=R(.04,.09);
-    this.size=R(1.5,4.5)*(0.5+power*.5);
-    this.color=power>.7?`hsl(${RI(30,55)},100%,70%)`:`hsl(${RI(0,25)},100%,62%)`;
+  constructor(x, y, color) {
+    const a = R(0, Math.PI * 2), s = R(4, 16);
+    this.x = x; this.y = y;
+    this.vx = Math.cos(a) * s; this.vy = Math.sin(a) * s - R(1, 4);
+    this.life = 1; this.decay = R(.04, .09);
+    this.size = R(2, 6);
+    this.color = color || '#00d4ff';
   }
-  update(){ this.x+=this.vx; this.y+=this.vy; this.vy+=.35; this.vx*=.95; this.life-=this.decay; }
-  draw(ctx){
-    ctx.save(); ctx.globalAlpha=C(this.life,0,1);
-    ctx.fillStyle=this.color; ctx.shadowColor=this.color; ctx.shadowBlur=9;
-    ctx.beginPath(); ctx.arc(this.x,this.y,this.size*this.life,0,Math.PI*2); ctx.fill();
+  update() { this.x += this.vx; this.y += this.vy; this.vy += .3; this.vx *= .92; this.life -= this.decay; }
+  draw(ctx) {
+    ctx.save(); ctx.globalAlpha = C(this.life, 0, 1);
+    ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
-  get dead(){ return this.life<=0; }
+  get dead() { return this.life <= 0; }
 }
 
-class SlashArc {
-  constructor(x, y, angle, power){
-    this.x=x; this.y=y; this.angle=angle;
-    this.r=R(20,40); this.maxR=R(90,200)*(0.5+power*.5);
-    this.arc=R(.7,1.5); this.life=1; this.decay=R(.025,.06);
-    this.thick=R(2,7)*(0.5+power*.5);
-    this.color=power>.65?`hsl(${RI(38,60)},100%,72%)`:`hsl(${RI(190,230)},100%,66%)`;
+class ShockwaveRing {
+  constructor(x, y, color) {
+    this.x = x; this.y = y;
+    this.r = 8; this.life = 1; this.decay = 0.05;
+    this.color = color || '#00d4ff';
   }
-  update(){ this.r=L(this.r,this.maxR,.15); this.life-=this.decay; }
-  draw(ctx){
-    ctx.save(); ctx.globalAlpha=C(this.life,0,1);
-    ctx.strokeStyle=this.color; ctx.lineWidth=this.thick*this.life;
-    ctx.shadowColor=this.color; ctx.shadowBlur=18;
-    ctx.beginPath(); ctx.arc(this.x,this.y,this.r,this.angle-this.arc/2,this.angle+this.arc/2);
-    ctx.stroke(); ctx.restore();
+  update() { this.r += 16; this.life -= this.decay; }
+  draw(ctx) {
+    ctx.save(); ctx.globalAlpha = C(this.life * 0.7, 0, 1);
+    ctx.strokeStyle = this.color; ctx.lineWidth = 4 * this.life;
+    ctx.shadowColor = this.color; ctx.shadowBlur = 24;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
   }
-  get dead(){ return this.life<=0; }
+  get dead() { return this.life <= 0; }
 }
 
-// ─── STICKMAN ─────────────────────────────────────────────────────────────────
+// ─── STICKMAN MAGE ─────────────────────────────────────────────────────────────
 
 class Stickman {
   /**
-   * @param {number}          rootX
-   * @param {number}          groundY   – the fixed GROUND_Y value
-   * @param {1|-1}            facing    – 1=right, -1=left
-   * @param {string}          bodyColor – solid fill colour
-   * @param {string}          accent    – glow / headband colour
-   * @param {RealisticWeapon} weapon
+   * @param {number} rootX
+   * @param {number} groundY
+   * @param {1|-1}   facing
+   * @param {string} bodyColor - default black '#000000'
+   * @param {string} mageGlow  - hand light VFX colour (e.g. #00d4ff or #ff3355)
+   * @param {HTMLImageElement} vfxImage
+   * @param {HTMLImageElement} eyeImage - Ninja eye image
    */
-  constructor(rootX, groundY, facing, bodyColor, accent, weapon) {
-    this.rootX   = rootX;
+  constructor(rootX, groundY, facing, bodyColor = '#000000', mageGlow = '#00d4ff', vfxImage = null, eyeImage = null) {
+    this.rootX = rootX;
     this.groundY = groundY;
-    this.facing  = facing;
-    this.color   = bodyColor;
-    this.accent  = accent;
-    this.weapon  = weapon;
+    this.facing = facing;
+    this.color = bodyColor;
+    this.accent = mageGlow;
+    this.vfxImage = vfxImage;
+    this.eyeImage = eyeImage;
 
-    // Live joints (start from IdleStance copy)
     this.J = this._copy(POSES.IdleStance);
 
-    // Pose machine
-    this._name  = 'IdleStance';
-    this._src   = this._copy(POSES.IdleStance);
-    this._dst   = POSES.IdleStance;
-    this._t     = 1;
-    this._spd   = 5;
+    this._name = 'IdleStance';
+    this._src = this._copy(POSES.IdleStance);
+    this._dst = POSES.IdleStance;
+    this._t = 1;
+    this._spd = 5;
 
-    // Idle breathing
     this._breathT = Math.random() * Math.PI * 2;
-
-    // VFX
-    this.particles   = [];
-    this._shakePow   = 0;
-    this._shake      = {x:0, y:0};
+    this.particles = [];
+    this._shakePow = 0;
+    this._shake = { x: 0, y: 0 };
     this._flashTimer = 0;
-    this.health  = 100;
-    this._attacking  = false;
-  }
+    this.health = 100;
+    this._attacking = false;
 
-  // ── Pose helpers ─────────────────────────────────────────────────────────
+    // Alternating Hand State: 'RIGHT' -> 'LEFT' -> 'RIGHT'
+    this.activeHand = 'RIGHT';
+  }
 
   _copy(src) {
     const o = {};
@@ -347,123 +280,148 @@ class Stickman {
   }
 
   _go(poseName, speed) {
-    this._src  = this._copy(this.J);
-    this._dst  = POSES[poseName];
+    this._src = this._copy(this.J);
+    this._dst = POSES[poseName];
     this._name = poseName;
-    this._spd  = speed;
-    this._t    = 0;
+    this._spd = speed;
+    this._t = 0;
   }
 
-  // ── Public API ────────────────────────────────────────────────────────────
-
   /**
-   * Randomly pick one of the 9 attack animations.
-   * @returns {string} animation name
+   * Cast spell alternating hands!
+   * @param {Function} onStrike Callback when the hand actually strikes forward
    */
-  attack() {
-    if (this.health <= 0) return 'None';
+  attack(onStrike) {
+    if (this.health <= 0) return;
 
-    const idx  = Math.floor(Math.random() * ATTACK_NAMES.length);
-    const name = ATTACK_NAMES[idx];
-    const hv   = IS_HIGH_VEL[name] || false;
-    const vel  = hv ? R(0.76,1.0) : R(0.38,0.68);
-    const spd  = hv ? R(14,20)    : R(8,13);
+    const useRight = (this.activeHand === 'RIGHT');
+    const windupPose = useRight ? 'RightHandCast_Windup' : 'LeftHandCast_Windup';
+    const strikePose = useRight ? 'RightHandCast_Strike' : 'LeftHandCast_Strike';
 
-    this._go(name, spd);
-    this._attacking  = true;
-    this._flashTimer = 0.12;
+    this._attacking = true;
 
-    const peakMs    = (1/spd) * 680;
-    const recoverMs = peakMs + 190;
+    // Toggle hand state for NEXT click
+    this.activeHand = useRight ? 'LEFT' : 'RIGHT';
 
+    // Phase 1: Windup (Smoothly switch hands to prepare)
+    // Slower speed for more frames and visible smooth transition
+    this._go(windupPose, 5); 
+    
+    // Phase 2: Forward Spell Thrust
     setTimeout(() => {
       if (this.health <= 0) return;
-      const tp = this._worldJ('swordTip');
-      const pp = this._worldJ('swordPivot');
-      this._spawnVFX(tp, pp, vel);
-      if (hv) this._shakePow = vel;
-    }, peakMs);
+      this._flashTimer = 0.18; // brighter flash
+      this._go(strikePose, 60); 
+      this._shakePow = 0.65; // harder camera shake
 
-    setTimeout(() => {
-      if (this.health <= 0) return;
-      this._attacking = false;
-      this._go('IdleStance', 4);
-    }, recoverMs);
+      // Calculate the extended hand position to spawn projectile from
+      const jointName = useRight ? 'wristR' : 'wristL';
+      const targetJoint = POSES[strikePose][jointName];
+      const targetRoot = POSES[strikePose].root;
+      const wp = {
+        x: this.rootX + (targetRoot.x + targetJoint.x) * this.facing + this._shake.x,
+        y: this.groundY + targetRoot.y + targetJoint.y + this._shake.y
+      };
+      
+      for(let i = 0; i < 8; i++) {
+        this.particles.push(new Spark(wp.x, wp.y, this.accent));
+      }
+      this.particles.push(new ShockwaveRing(wp.x, wp.y, '#ffffff'));
 
-    return name;
+      if (onStrike) onStrike({ hand: useRight ? 'RIGHT' : 'LEFT', handPos: wp });
+
+      // Phase 3: Recovery back to Idle (Slightly slower, for physical weight)
+      setTimeout(() => {
+        if (this.health <= 0) return;
+        this._attacking = false;
+        this._go('IdleStance', 15); 
+      }, 140);
+    }, 240); // 240ms duration (added more frames) to let the player clearly SEE the hand switch
   }
 
   recoil() {
     if (this.health <= 0) return;
-    this._flashTimer = 0.2;
-    this._shakePow   = 0.3;
-    this._go('DashRetreat', 16);
-    setTimeout(() => { if (this.health > 0) this._go('IdleStance', 4); }, 220);
+    this._flashTimer = 0.18;
+    this._shakePow = 0.25;
+    this._go('DashRetreat', 18);
+    setTimeout(() => { if (this.health > 0) this._go('IdleStance', 5); }, 220);
   }
 
   takeHit() {
     if (this.health <= 0) return;
-    this._flashTimer = 0.24;
-    this._shakePow   = 0.5;
-    this._go('DashRetreat', 12);
-    setTimeout(() => { if (this.health > 0) this._go('IdleStance', 4); }, 340);
+    this._flashTimer = 0.25;
+    this._shakePow = 0.6;
+    this._attacking = false;
+
+    this._go('DashRetreat', 18);
+    const pos = this._worldJ('neck');
+    for (let i = 0; i < 18; i++) this.particles.push(new Spark(pos.x, pos.y, this.accent));
+    this.particles.push(new ShockwaveRing(pos.x, pos.y, this.accent));
+
+    setTimeout(() => { if (this.health > 0) this._go('IdleStance', 5); }, 340);
   }
 
   die() {
+    if (this.health <= 0) return;
     this.health = 0;
     this._attacking = false;
-    this._go('Collapse', 8);
+    this._shakePow = 1.0;
+    this._flashTimer = 0.5;
+    this._go('Collapse', 6);
+
+    const pos = this._worldJ('neck');
+    for (let i = 0; i < 30; i++) this.particles.push(new Spark(pos.x, pos.y, this.accent));
+    for (let i = 0; i < 3; i++) this.particles.push(new ShockwaveRing(pos.x, pos.y, this.accent));
   }
 
-  // ── Update ────────────────────────────────────────────────────────────────
-
   update(dt) {
-    // Breathing offset (idle only)
-    this._breathT += dt * 1.7;
-    const bob = this._name === 'IdleStance'
-      ? Math.sin(this._breathT) * 4 : 0;
+    this._breathT += dt * 1.5;
 
-    // Pose interpolation
     if (this._t < 1) {
       this._t = C(this._t + dt * this._spd, 0, 1);
-      const et = easeInOut(this._t);
+      const easeProgress = easeOutCubic(this._t);
       for (const k in this._dst) {
-        this.J[k] = vLerp(this._src[k], this._dst[k], et);
+        if (this._src[k] && this._dst[k]) {
+          this.J[k] = vLerp(this._src[k], this._dst[k], easeProgress);
+        }
       }
     }
 
-    // Apply breathing
-    if (this._name === 'IdleStance') {
-      for (const k in this.J) this.J[k] = { x: this.J[k].x, y: this.J[k].y + bob * .35 };
-    }
+    // Anchor feet
+    const rootY = this.J.root.y;
+    if (this.J.footR && this.J.footR.y > -rootY) this.J.footR.y = -rootY;
+    if (this.J.footL && this.J.footL.y > -rootY) this.J.footL.y = -rootY;
 
-    // Particles
     this.particles.forEach(p => p.update());
     this.particles = this.particles.filter(p => !p.dead);
 
-    // Shake decay
     if (this._shakePow > 0) {
       this._shakePow = Math.max(0, this._shakePow - dt * 9);
-      const m = this._shakePow * 14;
+      const m = this._shakePow * 12;
       this._shake.x = R(-m, m); this._shake.y = R(-m, m);
     } else { this._shake.x = 0; this._shake.y = 0; }
 
     if (this._flashTimer > 0) this._flashTimer -= dt;
   }
 
-  // ── Draw ──────────────────────────────────────────────────────────────────
-
   draw(ctx) {
     const r = this.J.root;
-    // Root is offset by r.x, and sits on groundY + r.y
     const rx = this.rootX + r.x * this.facing + this._shake.x;
     const ry = this.groundY + r.y + this._shake.y;
 
+    // Floor shadow
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    ctx.beginPath();
+    ctx.ellipse(rx, this.groundY, 36, 9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
     ctx.save();
     ctx.translate(rx, ry);
-    ctx.scale(this.facing, 1);   // mirror for left-facing
+    ctx.scale(this.facing, 1);
 
-    // Particles (world space)
+    // Particles
     this.particles.forEach(p => {
       ctx.save();
       ctx.scale(this.facing, 1);
@@ -472,23 +430,11 @@ class Stickman {
       ctx.restore();
     });
 
-    this._drawBody(ctx);
+    // Render Stickman Mage Body
+    this.drawMageCharacter(ctx);
 
-    // Weapon (world-space coords converted to local)
-    ctx.restore();   // restore before drawing weapon in world space
-
-    // Don't draw weapon if dead/collapsed
-    if (this.health <= 0) return;
-
-    const pp = this._worldJ('swordPivot');
-    const tp = this._worldJ('swordTip');
-    this.weapon.draw(
-      ctx, pp.x, pp.y, tp.x, tp.y,
-      this._attacking, this._attacking
-    );
+    ctx.restore();
   }
-
-  // ── Private: world joint ──────────────────────────────────────────────────
 
   _worldJ(name) {
     const j = this.J[name];
@@ -499,113 +445,118 @@ class Stickman {
     };
   }
 
-  // ── Private: filled silhouette ────────────────────────────────────────────
+  /**
+   * Draw Stickman Mage: Solid BLACK body + glowing Mage Hand Light VFX on wrists.
+   */
+  drawMageCharacter(ctx) {
+    const J = this.J;
+    const fl = this._flashTimer > 0;
+    // Stickman body is DEFAULT BLACK
+    const bodyColor = fl ? '#ffffff' : '#000000';
+    const mageLight = this.accent;
 
-  _drawBody(ctx) {
-    const J   = this.J;
-    const fl  = this._flashTimer > 0;
-    const col = fl ? '#ffffff' : this.color;
-    const gl  = fl ? 30 : 10;
-    const acc = this.accent;
+    const bob = this._name === 'IdleStance' ? Math.sin(this._breathT) * 1.5 : 0;
 
-    ctx.shadowColor = acc;
-    ctx.shadowBlur  = gl;
+    const headY = J.head.y + bob;
+    const neckY = J.neck.y + bob;
+    const shoulderY = J.shoulder.y + bob;
+    const elbowRy = J.elbowR.y + bob;
+    const wristRy = J.wristR.y + bob;
+    const elbowLy = J.elbowL.y + bob;
+    const wristLy = J.wristL.y + bob;
 
-    // Hip centre (average of both hips)
-    const hx = (J.hipR.x + J.hipL.x) / 2;
-    const hy = (J.hipR.y + J.hipL.y) / 2;
-    const hc = { x: hx, y: hy };
+    const hc = {
+      x: (J.hipR.x + J.hipL.x) / 2,
+      y: (J.hipR.y + J.hipL.y) / 2
+    };
 
-    // ── Torso ──
-    this._pill(ctx, col, J.neck, hc, 13);
-
-    // ── Arms ──
-    this._pill(ctx, col, J.shoulder, J.elbowR, 7);
-    this._pill(ctx, col, J.elbowR,   J.wristR,  6);
-    this._pill(ctx, col, J.shoulder, J.elbowL, 7);
-    this._pill(ctx, col, J.elbowL,   J.wristL,  6);
-
-    // ── Legs ──
-    this._pill(ctx, col, hc,       J.kneeR, 9);
-    this._pill(ctx, col, J.kneeR, J.footR, 8);
-    this._pill(ctx, col, hc,       J.kneeL, 9);
-    this._pill(ctx, col, J.kneeL, J.footL, 8);
-
-    // ── Foot pads ──
-    this._ellipse(ctx, col, J.footR, 16, 5);
-    this._ellipse(ctx, col, J.footL, 16, 5);
-
-    // ── Head ──
-    ctx.beginPath();
-    ctx.arc(J.head.x, J.head.y, 22, 0, Math.PI * 2);
-    ctx.fillStyle   = col;
-    ctx.shadowBlur  = gl; ctx.shadowColor = acc;
-    ctx.fill();
-
-    // ── Headband ── (flowing arc on upper-half of head)
     ctx.save();
-    ctx.strokeStyle = acc;
-    ctx.lineWidth   = 7;
-    ctx.shadowColor = acc; ctx.shadowBlur = 22;
-    ctx.lineCap     = 'round';
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 14;
+    ctx.strokeStyle = bodyColor;
+    ctx.shadowBlur = 0; // Removed outline lights
+
+    // Single seamless path for stickman body
     ctx.beginPath();
-    ctx.arc(J.head.x, J.head.y, 22, -2.2, -0.5);
+    ctx.moveTo(hc.x, hc.y);
+    ctx.lineTo(J.neck.x, neckY);
+
+    ctx.moveTo(J.shoulder.x, shoulderY);
+    ctx.lineTo(J.elbowR.x, elbowRy);
+    ctx.lineTo(J.wristR.x, wristRy);
+
+    ctx.moveTo(J.shoulder.x, shoulderY);
+    ctx.lineTo(J.elbowL.x, elbowLy);
+    ctx.lineTo(J.wristL.x, wristLy);
+
+    ctx.moveTo(hc.x, hc.y);
+    ctx.lineTo(J.kneeR.x, J.kneeR.y);
+    ctx.lineTo(J.footR.x, J.footR.y);
+
+    ctx.moveTo(hc.x, hc.y);
+    ctx.lineTo(J.kneeL.x, J.kneeL.y);
+    ctx.lineTo(J.footL.x, J.footL.y);
+
     ctx.stroke();
-    // Trailing scarf end
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(J.head.x + 18, J.head.y - 10);
-    ctx.bezierCurveTo(
-      J.head.x + 34, J.head.y - 5,
-      J.head.x + 42, J.head.y + 8,
-      J.head.x + 36, J.head.y + 20
-    );
-    ctx.stroke();
-    ctx.restore();
 
-    // ── Eye glint ──
-    ctx.save();
-    ctx.fillStyle   = '#fff';
-    ctx.shadowColor = '#fff';
-    ctx.shadowBlur  = 7;
+    // Solid Black Head
     ctx.beginPath();
-    ctx.arc(J.head.x + 9, J.head.y + 2, 4, 0, Math.PI * 2);
+    ctx.arc(J.head.x, headY, 19, 0, Math.PI * 2);
+    ctx.fillStyle = bodyColor;
     ctx.fill();
+
+    // Ninja Eye Image (Without Pupil)
+    if (this.eyeImage && this.eyeImage.complete && this.eyeImage.naturalWidth > 0) {
+      ctx.save();
+      // Move slightly further away from the face outline (closer to center)
+      ctx.translate(J.head.x + 1, headY - 1);
+      
+      // Use screen composite so the black background of the generated image becomes fully transparent
+      ctx.globalCompositeOperation = 'screen';
+      
+      // Ninja eyes should face forward depending on stickman scale facing
+      // Increase height of the eye significantly and adjust Y to keep it centered
+      ctx.drawImage(this.eyeImage, -14, -19, 28, 38);
+      ctx.restore();
+    }
+
+    // ── MAGE HAND LIGHT VFX ─────────────────────────────────────────────────
+    // Pulsing glowing elemental light on both right and left hands/wrists!
+    this._drawHandLight(ctx, J.wristR.x, wristRy, mageLight);
+    this._drawHandLight(ctx, J.wristL.x, wristLy, mageLight);
+
     ctx.restore();
   }
 
-  /** Filled rounded pill between two points (capsule shape). */
-  _pill(ctx, color, a, b, r) {
-    const dx  = b.x - a.x, dy = b.y - a.y;
-    const len = Math.hypot(dx, dy);
-    if (len < 0.1) return;
+  _drawHandLight(ctx, x, y, color) {
     ctx.save();
-    ctx.translate(a.x, a.y);
-    ctx.rotate(Math.atan2(dy, dx));
-    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+
+    const g = ctx.createRadialGradient(x, y, 1, x, y, 8);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.6, color);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+
     ctx.beginPath();
-    ctx.roundRect(0, -r, len, r * 2, r);
+    ctx.arc(x, y, 8, 0, Math.PI * 2);
     ctx.fill();
+    
+    // Draw the generated magic hand VFX image if loaded (smaller)
+    if (this.vfxImage && this.vfxImage.complete && this.vfxImage.naturalWidth > 0) {
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.95;
+      
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Date.now() / 150); // fast magical rotation
+      ctx.drawImage(this.vfxImage, -20, -20, 40, 40); // Smaller scale
+      ctx.restore();
+    }
+    
     ctx.restore();
-  }
-
-  _ellipse(ctx, color, p, rx, ry) {
-    ctx.save();
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.ellipse(p.x, p.y + ry * .5, rx, ry, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  // ── VFX ──────────────────────────────────────────────────────────────────
-
-  _spawnVFX(tipW, pivotW, vel) {
-    const angle = Math.atan2(tipW.y - pivotW.y, tipW.x - pivotW.x);
-    const count = Math.floor(L(8, 32, vel));
-    for (let i = 0; i < count; i++) this.particles.push(new Spark(tipW.x, tipW.y, vel));
-    const arcs = vel > .65 ? (vel > .85 ? 4 : 2) : 1;
-    for (let i = 0; i < arcs; i++) this.particles.push(new SlashArc(tipW.x, tipW.y, angle, vel));
   }
 }
 
@@ -614,19 +565,17 @@ class Stickman {
 class LetterBelt {
   /**
    * Manages the 6-tile DOM conveyor belt in <div id="letter-belt">.
-   * @param {Function} onCorrect(letter) – called on successful match
-   * @param {Function} onWrong(expected, actual) – called on mismatch
+   * Enables clicking directly on bottom word tiles as well as keyboard typing.
    */
   constructor(onCorrect, onWrong) {
-    this._belt    = document.getElementById('letter-belt');
-    this._queue   = [];
-    this._active  = false;
-    this._onCB    = onCorrect;
-    this._offCB   = onWrong;
+    this._belt = document.getElementById('letter-belt');
+    this._queue = [];
+    this._active = false;
+    this._onCB = onCorrect;
+    this._offCB = onWrong;
     this._handler = this._onKey.bind(this);
   }
 
-  /** Fill belt with BELT_SIZE random letters and start listening. */
   start() {
     this._queue = [];
     this._belt.innerHTML = '';
@@ -645,28 +594,31 @@ class LetterBelt {
     return LETTER_POOL[RI(0, LETTER_POOL.length - 1)];
   }
 
-  /** Add a letter to the right of the queue (DOM + data). */
   _push() {
     const letter = this._randLetter();
     this._queue.push(letter);
 
     const tile = document.createElement('div');
-    tile.className   = 'letter-tile entering';
+    tile.className = 'letter-tile entering';
     tile.textContent = letter;
-    this._belt.appendChild(tile);
 
-    // Remove entering class after animation
+    // Make word tile clickable on the bottom!
+    tile.style.cursor = 'pointer';
+    tile.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this._handleInput(letter, tile);
+    });
+
+    this._belt.appendChild(tile);
     setTimeout(() => tile.classList.remove('entering'), 140);
   }
 
-  /** Remove the leftmost tile instantly (zero delay). */
   _shift() {
     this._queue.shift();
     const first = this._belt.firstChild;
     if (first) this._belt.removeChild(first);
   }
 
-  /** Mark first tile as active target. */
   _refreshTiles() {
     const tiles = this._belt.children;
     for (let i = 0; i < tiles.length; i++) {
@@ -675,75 +627,86 @@ class LetterBelt {
     }
   }
 
-  _onKey(e) {
+  _handleInput(pressedLetter, tileElement) {
     if (!this._active || this._queue.length === 0) return;
-    if (e.key.length !== 1) return;   // skip Shift, Enter, etc.
 
-    const pressed  = e.key.toUpperCase();
+    const pressed = pressedLetter.toUpperCase();
     const expected = this._queue[0];
-    const tile     = this._belt.firstChild;
+    const activeTile = tileElement || this._belt.firstChild;
 
     if (pressed === expected) {
-      // ── CORRECT ──────────────────────────────────────────
-      if (tile) { tile.classList.add('correct-flash'); }
-
-      // Instant remove + inject — zero delay
+      if (activeTile) activeTile.classList.add('correct-flash');
       this._shift();
       this._push();
       this._refreshTiles();
-
       this._onCB(expected);
-
     } else {
-      // ── WRONG ────────────────────────────────────────────
-      if (tile) {
-        tile.classList.add('wrong-flash');
-        setTimeout(() => {
-          tile.classList.remove('wrong-flash');
-        }, 180);
+      if (activeTile) {
+        activeTile.classList.add('wrong-flash');
+        setTimeout(() => activeTile.classList.remove('wrong-flash'), 180);
       }
       this._offCB(expected, pressed);
     }
   }
+
+  _onKey(e) {
+    if (!this._active || this._queue.length === 0) return;
+    if (e.key.length !== 1) return;
+    this._handleInput(e.key, this._belt.firstChild);
+  }
 }
 
-// ─── DUAL COMBAT SCENE ────────────────────────────────────────────────────────
+// ─── DUAL COMBAT SCENE (MAGE ARENA) ───────────────────────────────────────────
 
 class DualCombatScene {
-  /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
-    this.canvas  = canvas;
-    this.ctx     = canvas.getContext('2d');
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
     this.running = false;
-    this._raf    = null;
-    this._last   = 0;
+    this._raf = null;
+    this._last = 0;
 
     const W = canvas.width;
     const H = canvas.height;
 
-    // ── GROUND_Y ── strict floor baseline
-    this.GROUND_Y = H * 0.75;
+    // GROUND_Y baseline
+    this.GROUND_Y = H * 0.76;
 
-    const katana = new RealisticWeapon('assets/katana.png', 260, 50);
+    // Load background image assets/background.jpg
+    this.bgImage = new Image();
+    this.bgImage.src = 'assets/background.jpg';
 
-    // Player 1 — left, vibrant blue
-    this.p1 = new Stickman(W * 0.26, this.GROUND_Y,  1, '#1e90ff', '#88ccff', katana);
-    // Player 2 — right, vibrant red
-    this.p2 = new Stickman(W * 0.74, this.GROUND_Y, -1, '#e74c3c', '#ff8888', katana);
+    // Load VFX image
+    this.handVfxImage = new Image();
+    this.handVfxImage.src = 'assets/hand_vfx.png';
 
-    // Letter belt
+    // Load Ninja Eye image
+    this.ninjaEyeImage = new Image();
+    this.ninjaEyeImage.src = 'assets/ninja_eye.png';
+
+    // Player 1 — Left Mage (Cyan/Blue Hand Light)
+    this.p1 = new Stickman(W * 0.30, this.GROUND_Y, 1, '#000000', '#00d4ff', this.handVfxImage, this.ninjaEyeImage);
+    // Player 2 — Right Mage (Crimson/Red Hand Light)
+    this.p2 = new Stickman(W * 0.70, this.GROUND_Y, -1, '#000000', '#ff3355', this.handVfxImage, this.ninjaEyeImage);
+
+    // Active spell word projectiles
+    this.projectiles = [];
+
+    // Interactive Letter Belt
     this._belt = new LetterBelt(
-      (letter)         => this._onCorrect(letter),
-      (exp, got)       => this._onWrong(exp, got)
+      (letter) => this._onCorrect(letter),
+      (exp, got) => this._onWrong(exp, got)
     );
 
-    // Public stats
     this.stats = { hits: 0, misses: 0, lastMove: '—' };
+    this._localEnemyHp = 100;
+    this.hitStop = 0; // Added for hit freeze frame effect
   }
 
   start() {
     this.running = true;
-    this._last   = performance.now();
+    this._last = performance.now();
+    this.projectiles = [];
     this._belt.start();
     requestAnimationFrame(this._loop.bind(this));
   }
@@ -754,20 +717,42 @@ class DualCombatScene {
     if (this._raf) cancelAnimationFrame(this._raf);
   }
 
-  // ── Letter callbacks ───────────────────────────────────────────────────────
-
   _onCorrect(letter) {
     this.stats.hits++;
-    const moveName = this.p1.attack();
-    this.stats.lastMove = moveName;
+    this.stats.lastMove = `SPELL: ${letter}`;
 
-    // Notify game.js
-    if (typeof onLetterCorrect === 'function') onLetterCorrect(moveName);
+    // Cast spell with alternating hand, use callback to spawn projectile exactly on strike
+    this.p1.attack((castInfo) => {
+      const handPos = castInfo.handPos;
+      const targetPos = this.p2._worldJ('neck');
 
-    // Enemy reacts after travel time
-    const delay = moveName === 'HorizontalLunge' ? 110
-                : moveName === 'DecapitationSwing' ? 370 : 200;
-    setTimeout(() => this.p2.takeHit(), delay);
+      // Spawn flying Word Projectile ("K", "S", "T", etc.)
+      const proj = new WordProjectile(
+        handPos.x, handPos.y,
+        targetPos.x, targetPos.y,
+        letter,
+        '#00d4ff',
+        'p1', // owner
+        (hitX, hitY) => {
+          // Deal normal damage (health is now scaled to 100)
+          const dmg = R(15, 25);
+          this._localEnemyHp = Math.max(0, this._localEnemyHp - dmg);
+          this.updateHealthBars(this.p1.health, (this._localEnemyHp / 100) * 100);
+          
+          // Add HITSTOP (Freeze Frames) for crunchy impact
+          this.hitStop = 0.08; 
+          
+          if (this._localEnemyHp <= 0 && this.p2.health > 0) {
+            this.p2.die();
+          } else {
+            this.p2.takeHit();
+          }
+        }
+      );
+      this.projectiles.push(proj);
+    });
+
+    if (typeof onLetterCorrect === 'function') onLetterCorrect(`Spell_${letter}`);
   }
 
   _onWrong(expected, got) {
@@ -776,10 +761,31 @@ class DualCombatScene {
     if (typeof onLetterWrong === 'function') onLetterWrong();
   }
 
-  // ── External API (game.js / server) ───────────────────────────────────────
+  triggerLocalAttack(wpm, wordLen) {
+    this.p1.attack((castInfo) => {
+      const proj = new WordProjectile(
+        castInfo.handPos.x, castInfo.handPos.y,
+        this.p2._worldJ('neck').x, this.p2._worldJ('neck').y,
+        'ZAP', '#00d4ff',
+        'p1',
+        () => this.p2.takeHit()
+      );
+      this.projectiles.push(proj);
+    });
+  }
 
-  triggerLocalAttack(wpm, wordLen) { this.p1.attack(); setTimeout(() => this.p2.takeHit(), 200); }
-  triggerEnemyAttack()             { this.p2.attack(); setTimeout(() => this.p1.takeHit(), 200); }
+  triggerEnemyAttack() {
+    this.p2.attack((castInfo) => {
+      const proj = new WordProjectile(
+        castInfo.handPos.x, castInfo.handPos.y,
+        this.p1._worldJ('neck').x, this.p1._worldJ('neck').y,
+        'FIRE', '#ff3355',
+        'p2',
+        () => this.p1.takeHit()
+      );
+      this.projectiles.push(proj);
+    });
+  }
 
   updateHealthBars(myPct, enemyPct) {
     const m = document.getElementById('my-health');
@@ -794,17 +800,50 @@ class DualCombatScene {
     this.p2.health = enemyPct;
   }
 
-  // ── Game loop ──────────────────────────────────────────────────────────────
-
   _loop(now) {
     if (!this.running) return;
-    const dt = C((now - this._last) / 1000, 0, 0.05);
+    let dt = C((now - this._last) / 1000, 0, 0.05);
     this._last = now;
+
+    // Apply Hitstop Effect (pauses world updates briefly)
+    if (this.hitStop > 0) {
+      this.hitStop -= dt;
+      if (this.hitStop > 0) dt = 0;
+    }
 
     this.p1.update(dt);
     this.p2.update(dt);
-    this._draw();
 
+    // Collision detection between projectiles
+    for (let i = 0; i < this.projectiles.length; i++) {
+      let pA = this.projectiles[i];
+      if (pA.dead) continue;
+      for (let j = i + 1; j < this.projectiles.length; j++) {
+        let pB = this.projectiles[j];
+        if (pB.dead) continue;
+        if (pA.owner !== pB.owner) {
+          let dx = pA.x - pB.x;
+          let dy = pA.y - pB.y;
+          // Collision distance: ~40px radius (1600 squared)
+          if (dx * dx + dy * dy < 2500) { 
+            pA.dead = true;
+            pB.dead = true;
+            let mx = (pA.x + pB.x) / 2;
+            let my = (pA.y + pB.y) / 2;
+            // Explosion VFX at point of collision
+            for(let k=0; k<12; k++) this.p1.particles.push(new Spark(mx, my, '#ffffff'));
+            this.p1.particles.push(new ShockwaveRing(mx, my, '#ffffff'));
+            if (typeof onLetterWrong === 'function') onLetterWrong(); // Give feedback (shake/sound)
+          }
+        }
+      }
+    }
+
+    // Update projectiles
+    this.projectiles.forEach(p => p.update(dt));
+    this.projectiles = this.projectiles.filter(p => !p.dead);
+
+    this._draw();
     this._raf = requestAnimationFrame(this._loop.bind(this));
   }
 
@@ -814,80 +853,124 @@ class DualCombatScene {
 
     ctx.clearRect(0, 0, W, H);
 
-    // ── Background ──────────────────────────────────────────────────────────
-    const bg = ctx.createRadialGradient(W/2, H*.55, 30, W/2, H*.55, W*.72);
-    bg.addColorStop(0, '#1c0404');
-    bg.addColorStop(1, '#040000');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
+    // ── 1. Background Arena Image (assets/background.jpg) ───────────────────
+    if (this.bgImage.complete && this.bgImage.naturalWidth > 0) {
+      ctx.drawImage(this.bgImage, 0, 0, W, H);
+    } else {
+      ctx.fillStyle = '#0a0a0f';
+      ctx.fillRect(0, 0, W, H);
+    }
 
-    // Subtle vignette
-    const vig = ctx.createRadialGradient(W/2, H/2, H*.3, W/2, H/2, W*.7);
-    vig.addColorStop(0, 'rgba(0,0,0,0)');
-    vig.addColorStop(1, 'rgba(0,0,0,.55)');
+    // Dark moody overlay vignette
+    const vig = ctx.createRadialGradient(W / 2, H / 2, H * .25, W / 2, H / 2, W * .7);
+    vig.addColorStop(0, 'rgba(0,0,0,0.1)');
+    vig.addColorStop(1, 'rgba(0,0,0,0.7)');
     ctx.fillStyle = vig;
     ctx.fillRect(0, 0, W, H);
 
-    // ── Ground floor ────────────────────────────────────────────────────────
+    // ── 2. Silhouette Black Land Platform ──────────────────────────────────
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
 
-    // Below-floor shadow fill
-    const floor = ctx.createLinearGradient(0, GROUND_Y, 0, GROUND_Y + 60);
-    floor.addColorStop(0, 'rgba(192,57,43,.14)');
-    floor.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = floor;
-    ctx.fillRect(0, GROUND_Y, W, 60);
-
-    // Floor glow line
+    // Platform edge glowing magic rim
     ctx.save();
-    ctx.strokeStyle = 'rgba(192,57,43,.55)';
-    ctx.lineWidth   = 2;
-    ctx.shadowColor = '#c0392b'; ctx.shadowBlur = 18;
-    ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(W, GROUND_Y); ctx.stroke();
+    ctx.strokeStyle = '#00d4ff';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#00d4ff';
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.moveTo(0, GROUND_Y);
+    ctx.lineTo(W, GROUND_Y);
+    ctx.stroke();
     ctx.restore();
 
-    // Floor grid lines (perspective illusion)
-    ctx.save();
-    ctx.strokeStyle = 'rgba(192,57,43,.08)';
-    ctx.lineWidth   = 1;
-    for (let gx = 0; gx <= W; gx += 80) {
-      ctx.beginPath(); ctx.moveTo(gx, GROUND_Y); ctx.lineTo(W/2, H + 80); ctx.stroke();
-    }
-    for (let d = 0; d < 5; d++) {
-      const py = GROUND_Y + d * 20;
-      ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke();
-    }
-    ctx.restore();
-
-    // Centre dash divider
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,.03)';
-    ctx.setLineDash([8, 18]); ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
-    ctx.restore();
-
-    // ── Stickmen ────────────────────────────────────────────────────────────
+    // ── 3. Stickman Mages ──────────────────────────────────────────────────
     this.p2.draw(ctx);
     this.p1.draw(ctx);
+
+    // ── 4. Word Projectiles ────────────────────────────────────────────────
+    this.projectiles.forEach(p => p.draw(ctx));
   }
 }
 
-// ─── COMBAT ENGINE (thin wrapper) ─────────────────────────────────────────────
+// ─── COMBAT ENGINE WRAPPER ────────────────────────────────────────────────────
 
 class CombatEngine {
   constructor(canvas) {
     this._scene = new DualCombatScene(canvas);
   }
-  start()                        { this._scene.start(); }
-  stop()                         { this._scene.stop();  }
-  get stats()                    { return this._scene.stats; }
-  triggerLocalAttack(wpm, wl)    { this._scene.triggerLocalAttack(wpm, wl); }
-  triggerEnemyAttack()           { this._scene.triggerEnemyAttack(); }
-  updateHealthBars(my, en)       { this._scene.updateHealthBars(my, en); }
+  start() { this._scene.start(); }
+  stop() { this._scene.stop(); }
+  get stats() { return this._scene.stats; }
+  triggerLocalAttack(wpm, wl) { this._scene.triggerLocalAttack(wpm, wl); }
+  triggerEnemyAttack() { this._scene.triggerEnemyAttack(); }
+  updateHealthBars(my, en) { this._scene.updateHealthBars(my, en); }
+}
+
+// ─── LOBBY STICKMAN SCENE ──────────────────────────────────────────────────
+class LobbyStickmanScene {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.running = false;
+    this._raf = null;
+    this._last = 0;
+    
+    this.handVfxImage = new Image();
+    this.handVfxImage.src = 'assets/hand_vfx.png';
+
+    this.ninjaEyeImage = new Image();
+    this.ninjaEyeImage.src = 'assets/ninja_eye.png';
+
+    // Place stickman in center of the large canvas
+    this.stickman = new Stickman(this.canvas.width / 2, this.canvas.height - 40, 1, '#000000', '#00d4ff', this.handVfxImage, this.ninjaEyeImage);
+    
+    // Set to a fighting pose for the base pose so it breathes naturally!
+    this.stickman.pose = POSES.FightStance;
+    this.stickman.activeHand = 'RIGHT'; 
+  }
+
+  start() {
+    this.running = true;
+    this._last = performance.now();
+    requestAnimationFrame(this._loop.bind(this));
+  }
+
+  stop() {
+    this.running = false;
+    if (this._raf) cancelAnimationFrame(this._raf);
+  }
+
+  _loop(now) {
+    if (!this.running) return;
+    const dt = C((now - this._last) / 1000, 0, 0.05);
+    this._last = now;
+
+    this.stickman.update(dt);
+    this._draw();
+    this._raf = requestAnimationFrame(this._loop.bind(this));
+  }
+
+  _draw() {
+    const { ctx, canvas } = this;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Scale stickman up to be huge in the lobby, perfectly centered
+    ctx.save();
+    // Translate to center, scale, translate back so he remains centered!
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(1.25, 1.25);
+    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+    
+    this.stickman.draw(ctx);
+    ctx.restore();
+  }
 }
 
 // ─── EXPORTS ──────────────────────────────────────────────────────────────────
-window.CombatEngine    = CombatEngine;
+window.CombatEngine = CombatEngine;
 window.DualCombatScene = DualCombatScene;
-window.Stickman        = Stickman;
-window.RealisticWeapon = RealisticWeapon;
-window.LetterBelt      = LetterBelt;
+window.LobbyStickmanScene = LobbyStickmanScene;
+window.Stickman = Stickman;
+window.WordProjectile = WordProjectile;
+window.LetterBelt = LetterBelt;

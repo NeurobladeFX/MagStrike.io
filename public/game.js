@@ -1,7 +1,8 @@
-const RENDER_SERVER_URL = "https://magstrike-io.onrender.com";
-const socket = io(RENDER_SERVER_URL);
+const socket = typeof io !== 'undefined' ? io() : null;
 
 // --- State ---
+const MAX_HEALTH = 100;
+
 const appState = {
   scene: 'LOADING',
   credits: 0,
@@ -12,8 +13,8 @@ const appState = {
     inMatch: false,
     timer: 0,
     startTime: 0,
-    myHealth: 100,
-    enemyHealth: 100,
+    myHealth: MAX_HEALTH,
+    enemyHealth: MAX_HEALTH,
     myDmg: 0,
     enemyDmg: 0,
     myWpm: 0,
@@ -120,6 +121,17 @@ const app = {
     document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
     document.getElementById(sceneId).classList.add('active');
     appState.scene = sceneId;
+    
+    // Manage lobby stickman rendering
+    if (sceneId === 'lobby-screen') {
+      if (!window.lobbyGraphics) {
+        const c = document.getElementById('lobby-stickman-canvas');
+        if (c) window.lobbyGraphics = new LobbyStickmanScene(c);
+      }
+      if (window.lobbyGraphics) window.lobbyGraphics.start();
+    } else {
+      if (window.lobbyGraphics) window.lobbyGraphics.stop();
+    }
   },
 
   openProfile() {
@@ -175,8 +187,8 @@ const app = {
     this.changeScene('game-screen');
     
     appState.match.inMatch = true;
-    appState.match.myHealth = 100;
-    appState.match.enemyHealth = 100;
+    appState.match.myHealth = MAX_HEALTH;
+    appState.match.enemyHealth = MAX_HEALTH;
     appState.match.myDmg = 0;
     appState.match.enemyDmg = 0;
     
@@ -263,16 +275,16 @@ socket.on('gameState', (state) => {
   appState.match.myHealth = myState.health;
   appState.match.enemyHealth = enemyState.health;
   
-  document.getElementById('my-health').style.width = `${Math.max(0, myState.health)}%`;
-  document.getElementById('enemy-health').style.width = `${Math.max(0, enemyState.health)}%`;
+  document.getElementById('my-health').style.width = `${Math.max(0, (myState.health / MAX_HEALTH) * 100)}%`;
+  document.getElementById('enemy-health').style.width = `${Math.max(0, (enemyState.health / MAX_HEALTH) * 100)}%`;
   
   // Check enemy attacks for animation
   if (enemyState.isAttacking) {
     if (graphics) graphics.triggerEnemyAttack();
   }
   
-  // Update health bars in combat scene
-  if (graphics) graphics.updateHealthBars(myState.health, enemyState.health);
+  // Update health bars in combat scene using percentages
+  if (graphics) graphics.updateHealthBars((myState.health / MAX_HEALTH) * 100, (enemyState.health / MAX_HEALTH) * 100);
   
   // Stats
   document.getElementById('game-my-dmg').innerText = myState.dmg;

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MagStrike — Sword Battle</title>
-  <meta name="description" content="A competitive real-time sword combat typing game. Type fast, strike hard.">
+  <title>MagStrike — Mage Spell Arena</title>
+  <meta name="description" content="A competitive real-time mage spell battle game. Cast spells, hurl word projectiles, vanquish opponents.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&display=swap" rel="stylesheet">
@@ -15,9 +15,8 @@
   <!-- ─── LOADING SCREEN ──────────────────────────────────────── -->
   <div id="loading-screen" class="scene active">
     <div class="loader-content">
-      <div class="logo-mark">⚔</div>
-      <h1 class="glitch-text" data-text="MAGSTRIKE">MAGSTRIKE</h1>
-      <p class="loader-sub">INITIALISING COMBAT ENGINE...</p>
+      <img src="assets/logo.png" alt="MagStrike" class="main-logo" style="width: 280px; margin-bottom: 20px;">
+      <p class="loader-sub">INITIALISING MAGE SPELL ENGINE...</p>
       <div class="progress-bar-container">
         <div id="progress-bar" class="progress-bar"></div>
       </div>
@@ -31,17 +30,16 @@
         <img id="my-avatar" src="assets/avatar_default.png" alt="Avatar">
       </div>
       <div class="profile-info">
-        <div id="my-name" class="player-name">WARRIOR</div>
+        <div id="my-name" class="player-name">SPELLCASTER</div>
         <div class="stats-preview">LVL <span id="my-level">1</span> &nbsp;|&nbsp; SPD <span id="my-wpm">0</span></div>
       </div>
     </div>
 
-    <button class="shop-btn" onclick="app.openShop()">🛡 ARMORY</button>
+    <button class="shop-btn" onclick="app.openShop()">✨ SANCTUM</button>
 
     <div class="lobby-center">
-      <div class="logo-mark large">⚔</div>
-      <h1 class="lobby-title">MAGSTRIKE</h1>
-      <p class="lobby-subtitle">SWORD COMBAT ARENA</p>
+      <img src="assets/logo.png" alt="MagStrike" class="main-logo" style="width: 250px; margin-bottom: -50px; position: relative; z-index: 10;">
+      <canvas id="lobby-stickman-canvas" width="400" height="400" style="margin: 0 auto; display: block;"></canvas>
     </div>
 
     <div class="play-container">
@@ -140,11 +138,11 @@
 
     <!-- ─── LETTER CONVEYOR BELT ─────────────────────────────── -->
     <div id="combat-letters-ui" class="combat-letters-ui">
-      <div class="belt-label">STRIKE KEY</div>
+      <div class="belt-label">CAST SPELL — CLICK OR TYPE LETTER BELOW</div>
       <div id="letter-belt" class="letter-belt">
         <!-- 6 letter tiles injected by JS -->
       </div>
-      <div class="belt-hint">Match the first letter → ATTACK</div>
+      <div class="belt-hint">Click the word tile on bottom or type matching letter → HURL SPELL</div>
     </div>
 
   </div>
