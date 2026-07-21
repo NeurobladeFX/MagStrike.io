@@ -114,12 +114,18 @@ const app = {
     this.updateGlobalUI();
   },
 
+  getAvatarSrc(av) {
+    if (!av) return 'assets/avatar_default.png';
+    if (av.startsWith('data:image')) return av;
+    return `assets/${av}.png`;
+  },
+
   updateGlobalUI() {
     document.getElementById('my-level').innerText = appState.level;
     document.getElementById('my-wpm').innerText = appState.wpmRecord;
     document.getElementById('shop-credits').innerText = appState.credits;
     document.getElementById('my-name').innerText = appState.playerName;
-    document.getElementById('my-avatar').src = `assets/${appState.avatar}.png`;
+    document.getElementById('my-avatar').src = this.getAvatarSrc(appState.avatar);
   },
 
   changeScene(sceneId) {
@@ -161,9 +167,22 @@ const app = {
     const available = ['hero_pig', 'hero_cat', 'hero_dog', 'hero_bear', 'hero_chicken', 'hero_frog', 'avatar_1', 'avatar_2'];
     grid.innerHTML = available.map(av => `
       <div class="shop-item ${appState.avatar === av ? 'selected' : ''}" onclick="app.selectProfileAvatar('${av}')">
-        <img class="avatar-preview" src="assets/${av}.png">
+        <img class="avatar-preview" src="${this.getAvatarSrc(av)}" onerror="this.src='assets/avatar_default.png'">
       </div>
     `).join('');
+  },
+
+  handleAvatarUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        appState.avatar = e.target.result;
+        this.saveGame();
+        this.renderProfileAvatars();
+      };
+      reader.readAsDataURL(file);
+    }
   },
 
   selectProfileAvatar(avId) {
@@ -297,6 +316,10 @@ socket.on('matchStarted', (data) => {
   
   // Set in VS screen
   document.getElementById('vs-enemy-name').innerText = eName;
+  document.getElementById('vs-my-avatar').src = app.getAvatarSrc(appState.avatar);
+  document.getElementById('vs-enemy-avatar').src = app.getAvatarSrc(data.enemyHero);
+  document.getElementById('wait-enemy-avatar').src = app.getAvatarSrc(data.enemyHero);
+  
   // Set in Game screen HUD
   document.getElementById('game-enemy-name').innerText = eName;
   

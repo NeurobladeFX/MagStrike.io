@@ -26,12 +26,12 @@
   <!-- ─── LOBBY ───────────────────────────────────────────────── -->
   <div id="lobby-screen" class="scene">
     <div class="profile-module" onclick="app.openProfile()">
-      <div class="avatar-circle">
+      <div class="avatar-box">
         <img id="my-avatar" src="assets/avatar_default.png" alt="Avatar">
       </div>
-      <div class="profile-info">
-        <div id="my-name" class="player-name">SPELLCASTER</div>
-        <div class="stats-preview">LVL <span id="my-level">1</span> &nbsp;|&nbsp; SPD <span id="my-wpm">0</span></div>
+      <div class="info-trapezoid">
+        <div id="my-name" class="trapezoid-name">SPELLCASTER</div>
+        <div class="trapezoid-lvl">Lvl. <span id="my-level">1</span></div>
       </div>
     </div>
 
@@ -81,6 +81,11 @@
         <div id="profile-avatar-grid" class="shop-grid" style="grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));">
           <!-- Populated by JS -->
         </div>
+      </div>
+
+      <div class="input-group" style="align-items: center; margin-top: 10px;">
+        <button class="upload-btn" onclick="document.getElementById('avatar-upload-input').click()">UPLOAD CUSTOM AVATAR</button>
+        <input type="file" id="avatar-upload-input" accept="image/png, image/jpeg" style="display:none;" onchange="app.handleAvatarUpload(event)">
       </div>
 
       <button class="huge-play-btn" style="margin-top:20px; font-size:1.2rem; padding: 15px;" onclick="app.saveProfile()">SAVE CHANGES</button>
