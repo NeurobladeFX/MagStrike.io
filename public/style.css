@@ -268,11 +268,11 @@ button { cursor: pointer; font-family: var(--font); }
 
 .aaa-profile-wrapper {
   position: relative; width: 100%; display: flex; justify-content: center;
-  margin-bottom: 40px; margin-top: 20px;
+  margin-bottom: 30px; margin-top: 10px;
 }
 .aaa-red-backdrop {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: min(900px, 95vw); height: 350px;
+  width: min(900px, 95vw); height: 400px;
   background: rgba(10, 0, 0, 0.5);
   border: 1px solid rgba(255, 51, 51, 0.4);
   border-radius: 20px; z-index: -1;
@@ -280,8 +280,12 @@ button { cursor: pointer; font-family: var(--font); }
 
 .aaa-avatar-grid {
   display: grid; grid-template-columns: repeat(2, 1fr);
-  gap: 15px; width: 100%; max-width: 320px; margin: 0 auto;
+  gap: 15px; width: 100%; max-width: 340px; margin: 0 auto;
+  max-height: 360px; overflow-y: auto; padding: 10px;
 }
+/* Custom Scrollbar */
+.aaa-avatar-grid::-webkit-scrollbar { width: 6px; }
+.aaa-avatar-grid::-webkit-scrollbar-thumb { background: rgba(255, 51, 51, 0.6); border-radius: 4px; }
 
 .aaa-avatar-item {
   background: rgba(0,0,0,0.7);
