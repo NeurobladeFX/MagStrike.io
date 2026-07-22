@@ -94,7 +94,7 @@ function calculateWPM() {
 }
 
 // Called by DualCombatScene when a correct letter is pressed
-function onLetterCorrect(moveName) {
+function onLetterCorrect(moveName, spellId) {
   totalHits++;
   totalAttempts++;
   combo = Math.min(combo + 1, 10);
@@ -112,9 +112,16 @@ function onLetterCorrect(moveName) {
 
   // Sync to server
   if (socket) {
-    socket.emit('attack', { damage, wpm: currentWpm, letter, move: moveName });
+    socket.emit('attack', { damage, wpm: currentWpm, letter, move: moveName, spellId });
   }
 }
+
+// Called by DualCombatScene when a mid-air projectile collision occurs
+window.onSpellClash = function(id1, id2) {
+  if (socket) {
+    socket.emit('spellClash', { id1, id2 });
+  }
+};
 
 // Called by DualCombatScene when wrong letter is pressed
 function onLetterWrong() {
@@ -536,7 +543,7 @@ if (socket) {
 
   socket.on('opponentAttack', (data) => {
     if (graphics) {
-      graphics.triggerEnemyAttack(data.letter || 'SPELL');
+      graphics.triggerEnemyAttack(data.letter || 'SPELL', data.spellId);
     }
   });
 

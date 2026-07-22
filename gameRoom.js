@@ -11,6 +11,7 @@ class GameRoom {
     
     this.gameState = 'PLAYING';
     this.lastTime = Date.now();
+    this.activeSpells = {};
   }
 
   start() {
@@ -27,6 +28,8 @@ class GameRoom {
     const damage = data.damage || 10;
     const wpm = data.wpm || 0;
     const letter = data.letter || (data.move ? data.move.replace('Spell_', '') : 'SPELL');
+    const spellId = data.spellId || Math.random().toString();
+    console.log(`handleAttack by ${playerId}: spellId = ${spellId}`);
     
     if (playerId === this.p1Id) {
       this.p1.wpm = wpm;
@@ -34,32 +37,52 @@ class GameRoom {
       // Emit projectile attack event to p2 immediately so they see the spell cast
       const p2Socket = this.io.sockets.sockets.get(this.p2Id);
       if (p2Socket) {
-        p2Socket.emit('opponentAttack', { letter, damage, wpm });
+        p2Socket.emit('opponentAttack', { letter, damage, wpm, spellId });
       }
 
       // Delay damage application until the projectile hits (240ms windup + 385ms travel time)
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (this.gameState === 'PLAYING') {
           this.p2.health = Math.max(0, this.p2.health - damage);
           this.p1.dmg += damage;
         }
+        delete this.activeSpells[spellId];
       }, 625);
+      this.activeSpells[spellId] = timer;
+
     } else if (playerId === this.p2Id) {
       this.p2.wpm = wpm;
       
       // Emit projectile attack event to p1 immediately so they see the spell cast
       const p1Socket = this.io.sockets.sockets.get(this.p1Id);
       if (p1Socket) {
-        p1Socket.emit('opponentAttack', { letter, damage, wpm });
+        p1Socket.emit('opponentAttack', { letter, damage, wpm, spellId });
       }
 
       // Delay damage application until the projectile hits
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (this.gameState === 'PLAYING') {
           this.p1.health = Math.max(0, this.p1.health - damage);
           this.p2.dmg += damage;
         }
+        delete this.activeSpells[spellId];
       }, 625);
+      this.activeSpells[spellId] = timer;
+    }
+  }
+
+  handleClash(data) {
+    if (!data) return;
+    console.log(`Clash detected for spells: ${data.id1}, ${data.id2}`);
+    if (data.id1 && this.activeSpells[data.id1]) {
+      console.log(`Clearing timeout for ${data.id1}`);
+      clearTimeout(this.activeSpells[data.id1]);
+      delete this.activeSpells[data.id1];
+    }
+    if (data.id2 && this.activeSpells[data.id2]) {
+      console.log(`Clearing timeout for ${data.id2}`);
+      clearTimeout(this.activeSpells[data.id2]);
+      delete this.activeSpells[data.id2];
     }
   }
 

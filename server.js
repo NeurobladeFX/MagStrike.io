@@ -155,6 +155,12 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('spellClash', (data) => {
+    if (socket.roomId && rooms.has(socket.roomId)) {
+      rooms.get(socket.roomId).handleClash(data);
+    }
+  });
+
   socket.on('disconnect', () => {
     if (matchmakingQueue === socket) {
       matchmakingQueue = null;

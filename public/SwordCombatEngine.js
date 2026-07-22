@@ -112,7 +112,8 @@ const POSES = {
 // ─── WORD PROJECTILE CLASS ───────────────────────────────────────────────────
 
 class WordProjectile {
-  constructor(startX, startY, targetX, targetY, word, color, owner, onHit) {
+  constructor(startX, startY, targetX, targetY, word, color, owner, onHit, id) {
+    this.id = id;
     this.startX = startX;
     this.startY = startY;
     this.x = startX;
@@ -716,6 +717,8 @@ class DualCombatScene {
     this.stats.hits++;
     this.stats.lastMove = `SPELL: ${letter}`;
 
+    const spellId = 'spell_' + Math.random().toString(36).substring(2);
+
     // Cast spell with alternating hand, spawn projectile exactly on strike
     this.p1.attack((castInfo) => {
       const handPos = castInfo.handPos;
@@ -731,12 +734,13 @@ class DualCombatScene {
         (hitX, hitY) => {
           this.hitStop = 0.08; 
           this.p2.takeHit();
-        }
+        },
+        spellId
       );
       this.projectiles.push(proj);
     });
 
-    if (typeof onLetterCorrect === 'function') onLetterCorrect(letter);
+    if (typeof onLetterCorrect === 'function') onLetterCorrect(letter, spellId);
   }
 
   _onWrong(expected, got) {
@@ -758,7 +762,7 @@ class DualCombatScene {
     });
   }
 
-  triggerEnemyAttack(letter) {
+  triggerEnemyAttack(letter, spellId) {
     const spellText = letter || 'SPELL';
     this.p2.attack((castInfo) => {
       const proj = new WordProjectile(
@@ -766,7 +770,8 @@ class DualCombatScene {
         this.p1._worldJ('neck').x, this.p1._worldJ('neck').y,
         spellText, '#ff3355',
         'p2',
-        () => this.p1.takeHit()
+        () => this.p1.takeHit(),
+        spellId
       );
       this.projectiles.push(proj);
     });
@@ -816,9 +821,12 @@ class DualCombatScene {
             let mx = (pA.x + pB.x) / 2;
             let my = (pA.y + pB.y) / 2;
             // Explosion VFX at point of collision
-            for(let k=0; k<12; k++) this.p1.particles.push(new Spark(mx, my, '#ffffff'));
-            this.p1.particles.push(new ShockwaveRing(mx, my, '#ffffff'));
-            if (typeof onLetterWrong === 'function') onLetterWrong(); // Give feedback (shake/sound)
+            for(let k=0; k<20; k++) this.p1.particles.push(new Spark(mx, my, '#ffffff'));
+            this.p1.particles.push(new ShockwaveRing(mx, my, pA.color));
+            this.p1.particles.push(new ShockwaveRing(mx, my, pB.color));
+            this._shakePow = 0.4;
+            
+            if (typeof window.onSpellClash === 'function') window.onSpellClash(pA.id, pB.id);
           }
         }
       }
