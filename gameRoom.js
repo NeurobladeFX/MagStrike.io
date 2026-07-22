@@ -29,25 +29,37 @@ class GameRoom {
     const letter = data.letter || (data.move ? data.move.replace('Spell_', '') : 'SPELL');
     
     if (playerId === this.p1Id) {
-      this.p2.health = Math.max(0, this.p2.health - damage);
       this.p1.wpm = wpm;
-      this.p1.dmg += damage;
       
-      // Emit projectile attack event to p2
+      // Emit projectile attack event to p2 immediately so they see the spell cast
       const p2Socket = this.io.sockets.sockets.get(this.p2Id);
       if (p2Socket) {
         p2Socket.emit('opponentAttack', { letter, damage, wpm });
       }
+
+      // Delay damage application until the projectile hits (240ms windup + 385ms travel time)
+      setTimeout(() => {
+        if (this.gameState === 'PLAYING') {
+          this.p2.health = Math.max(0, this.p2.health - damage);
+          this.p1.dmg += damage;
+        }
+      }, 625);
     } else if (playerId === this.p2Id) {
-      this.p1.health = Math.max(0, this.p1.health - damage);
       this.p2.wpm = wpm;
-      this.p2.dmg += damage;
       
-      // Emit projectile attack event to p1
+      // Emit projectile attack event to p1 immediately so they see the spell cast
       const p1Socket = this.io.sockets.sockets.get(this.p1Id);
       if (p1Socket) {
         p1Socket.emit('opponentAttack', { letter, damage, wpm });
       }
+
+      // Delay damage application until the projectile hits
+      setTimeout(() => {
+        if (this.gameState === 'PLAYING') {
+          this.p1.health = Math.max(0, this.p1.health - damage);
+          this.p2.dmg += damage;
+        }
+      }, 625);
     }
   }
 
