@@ -641,8 +641,8 @@ class Stickman {
       ctx.globalCompositeOperation = 'screen';
 
       // Ninja eyes should face forward depending on stickman scale facing
-      // Increase height of the eye significantly and adjust Y to keep it centered
-      ctx.drawImage(this.eyeImage, -14, -19, 28, 38);
+      // Reduced size slightly while maintaining aspect ratio (~22x30)
+      ctx.drawImage(this.eyeImage, -11, -15, 22, 30);
       ctx.restore();
     }
 
