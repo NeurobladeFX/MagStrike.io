@@ -31,6 +31,71 @@ const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 
 function vLerp(a, b, t) { return { x: L(a.x, b.x, t), y: L(a.y, b.y, t) }; }
 
+function createPingPongVideo(src) {
+  const vid = document.createElement('video');
+  vid.src = src;
+  vid.autoplay = true;
+  vid.muted = true;
+  vid.setAttribute('playsinline', '');
+
+  let isReversing = false;
+  
+  const playForward = () => {
+    isReversing = false;
+    vid.playbackRate = 1;
+    vid.play().catch(()=>{});
+  };
+
+  const playReverse = () => {
+    isReversing = true;
+    try {
+      vid.playbackRate = -1;
+      vid.play().catch(()=>{});
+    } catch (e) {
+      // Fallback if browser doesn't support negative playbackRate
+      vid.currentTime = 0;
+      playForward();
+    }
+  };
+
+  vid.addEventListener('timeupdate', () => {
+    if (!vid.duration) return;
+    if (!isReversing && vid.currentTime >= vid.duration - 0.05) {
+      playReverse();
+    } else if (isReversing && vid.currentTime <= 0.05) {
+      playForward();
+    }
+  });
+
+  vid.addEventListener('ended', () => {
+    playReverse();
+  });
+
+  vid.play().catch(e => console.log('Video play error:', e));
+  return vid;
+}
+
+const ASSETS = { hatCache: {}, effectCache: {} };
+
+function getOutfitHat(id) {
+  if (!id) return null;
+  if (ASSETS.hatCache[id]) return ASSETS.hatCache[id];
+  const img = new Image();
+  if (id === 'outfit_mage') img.src = 'assets/mage_hat.png';
+  else if (id === 'outfit_samurai') img.src = 'assets/samurai_hat.png';
+  ASSETS.hatCache[id] = img;
+  return img;
+}
+
+function getEffectImg(id) {
+  if (!id) return null;
+  if (ASSETS.effectCache[id]) return ASSETS.effectCache[id];
+  const img = new Image();
+  if (id === 'effect_dragon') img.src = 'assets/dragon_aura.png';
+  ASSETS.effectCache[id] = img;
+  return img;
+}
+
 // ─── MAGE POSES SYSTEM ────────────────────────────────────────────────────────
 
 const POSES = {
@@ -124,8 +189,12 @@ class WordProjectile {
     this.color = color;
     this.owner = owner;
     this.onHit = onHit;
+    this.outfit = null;
+    this.outfitImg = null;
+    this.effect = null;
+    this.effectImg = null; // Travel speed (~0.35s flight time)
     this.progress = 0;
-    this.speed = 2.6; // Travel speed (~0.35s flight time)
+    this.speed = 2.6;
     this.dead = false;
     this.trail = [];
   }
@@ -228,6 +297,33 @@ class ShockwaveRing {
     ctx.strokeStyle = this.color; ctx.lineWidth = 4 * this.life;
     ctx.shadowColor = this.color; ctx.shadowBlur = 24;
     ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+  get dead() { return this.life <= 0; }
+}
+
+class FogParticle {
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    this.life = 1; this.decay = Math.random() * 0.02 + 0.01;
+    this.r = Math.random() * 15 + 10;
+    this.vx = (Math.random() - 0.5) * 0.5;
+    this.vy = -Math.random() * 1.5 - 0.5;
+  }
+  update() {
+    this.x += this.vx; this.y += this.vy;
+    this.life -= this.decay;
+    this.r += 0.2;
+  }
+  draw(ctx) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, this.life * 0.4);
+    ctx.fillStyle = '#111111';
+    ctx.shadowColor = '#000000';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
   get dead() { return this.life <= 0; }
@@ -472,6 +568,33 @@ class Stickman {
     };
 
     ctx.save();
+
+    // ── DRAGON AURA EFFECT ──────────────────────────────────────────────────
+    if (this.effect === 'effect_dragon' && this.effectImg && this.effectImg.complete) {
+      ctx.save();
+      ctx.translate(hc.x, hc.y - 40);
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 200) * 0.2;
+      ctx.scale(this.facing, 1);
+      ctx.drawImage(this.effectImg, -80, -100, 160, 160);
+      ctx.restore();
+    }
+
+    // ── SHADOW FOG EFFECT ───────────────────────────────────────────────────
+    if (this.effect === 'effect_shadow') {
+      if (Math.random() < 0.25) {
+        // Find world coordinates for particles
+        const r = J.root;
+        const rx = this.rootX + r.x * this.facing;
+        const ry = this.groundY + r.y;
+        
+        this.particles.push(new FogParticle(
+          rx + (Math.random() - 0.5) * 40,
+          ry + J.footR.y - Math.random() * 80
+        ));
+      }
+    }
+
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.lineWidth = 14;
@@ -501,6 +624,7 @@ class Stickman {
 
     ctx.stroke();
 
+
     // Solid Black Head
     ctx.beginPath();
     ctx.arc(J.head.x, headY, 19, 0, Math.PI * 2);
@@ -519,6 +643,30 @@ class Stickman {
       // Ninja eyes should face forward depending on stickman scale facing
       // Increase height of the eye significantly and adjust Y to keep it centered
       ctx.drawImage(this.eyeImage, -14, -19, 28, 38);
+      ctx.restore();
+    }
+
+    // ── OUTFITS (HATS) ───────────────────────────────────────────────────────
+    if (this.outfitImg && this.outfitImg.complete && this.outfitImg.naturalWidth > 0) {
+      ctx.save();
+      ctx.translate(J.head.x, headY);
+      
+      // Calculate rotation based on neck to head vector
+      const dx = J.head.x - J.neck.x;
+      const dy = headY - neckY;
+      let angle = Math.atan2(dy, dx) + Math.PI/2; 
+      ctx.rotate(angle);
+
+      if (this.outfit === 'outfit_mage') {
+        ctx.drawImage(this.outfitImg, -60, -78, 100, 90);
+      } else if (this.outfit === 'outfit_samurai') {
+        ctx.save();
+        ctx.scale(-this.facing, 1);
+        // You can tweak these 4 numbers: X, Y, Width, Height
+        ctx.drawImage(this.outfitImg, -40, -45, 80, 45); 
+        ctx.restore();
+      }
+      
       ctx.restore();
     }
 
@@ -545,15 +693,29 @@ class Stickman {
     ctx.arc(x, y, 8, 0, Math.PI * 2);
     ctx.fill();
     
-    // Draw the generated magic hand VFX image if loaded (smaller)
-    if (this.vfxImage && this.vfxImage.complete && this.vfxImage.naturalWidth > 0) {
+    // Draw the generated magic hand VFX video if loaded (smaller)
+    const w = this.vfxImage.naturalWidth || this.vfxImage.videoWidth;
+    const h = this.vfxImage.naturalHeight || this.vfxImage.videoHeight;
+    
+    if (this.vfxImage && (this.vfxImage.complete || this.vfxImage.readyState >= 2) && w > 0 && h > 0) {
       ctx.globalCompositeOperation = 'screen';
       ctx.globalAlpha = 0.95;
+      
+      const aspect = w / h;
+      const baseSize = 40;
+      let drawW = baseSize;
+      let drawH = baseSize;
+      
+      if (aspect > 1) {
+        drawH = baseSize / aspect; // Adjust height to fix vertical stretching
+      } else {
+        drawW = baseSize * aspect;
+      }
       
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(Date.now() / 150); // fast magical rotation
-      ctx.drawImage(this.vfxImage, -20, -20, 40, 40); // Smaller scale
+      ctx.drawImage(this.vfxImage, -drawW/2, -drawH/2, drawW, drawH); 
       ctx.restore();
     }
     
@@ -672,9 +834,8 @@ class DualCombatScene {
     this.bgImage = new Image();
     this.bgImage.src = 'assets/background.jpg';
 
-    // Load VFX image
-    this.handVfxImage = new Image();
-    this.handVfxImage.src = 'assets/hand_vfx.png';
+    // Load VFX video with ping-pong loop
+    this.handVfxImage = createPingPongVideo('assets/hand-vfx.webm');
 
     // Load Ninja Eye image
     this.ninjaEyeImage = new Image();
@@ -685,7 +846,6 @@ class DualCombatScene {
     // Player 2 — Right Mage (Crimson/Red Hand Light)
     this.p2 = new Stickman(W * 0.70, this.GROUND_Y, -1, '#000000', '#ff3355', this.handVfxImage, this.ninjaEyeImage);
 
-    // Active spell word projectiles
     this.projectiles = [];
 
     // Interactive Letter Belt
@@ -697,6 +857,18 @@ class DualCombatScene {
     this.stats = { hits: 0, misses: 0, lastMove: '—' };
     this._localEnemyHp = 100;
     this.hitStop = 0; // Added for hit freeze frame effect
+  }
+
+  setConfig(p1Outfit, p1Effect, p2Outfit, p2Effect) {
+    this.p1.outfit = p1Outfit;
+    this.p1.effect = p1Effect;
+    this.p1.outfitImg = getOutfitHat(p1Outfit);
+    this.p1.effectImg = getEffectImg(p1Effect);
+
+    this.p2.outfit = p2Outfit;
+    this.p2.effect = p2Effect;
+    this.p2.outfitImg = getOutfitHat(p2Outfit);
+    this.p2.effectImg = getEffectImg(p2Effect);
   }
 
   start() {
@@ -711,6 +883,27 @@ class DualCombatScene {
     this.running = false;
     this._belt.stop();
     if (this._raf) cancelAnimationFrame(this._raf);
+  }
+
+  setConfig(p1Outfit, p1Effect, p2Outfit, p2Effect) {
+    this.p1.outfit = p1Outfit;
+    this.p1.effect = p1Effect;
+    this.p1.outfitImg = this._loadImage(p1Outfit);
+    this.p1.effectImg = this._loadImage(p1Effect);
+    
+    this.p2.outfit = p2Outfit;
+    this.p2.effect = p2Effect;
+    this.p2.outfitImg = this._loadImage(p2Outfit);
+    this.p2.effectImg = this._loadImage(p2Effect);
+  }
+
+  _loadImage(id) {
+    if (!id) return null;
+    const img = new Image();
+    if (id === 'outfit_mage') img.src = 'assets/mage_hat.png';
+    else if (id === 'outfit_samurai') img.src = 'assets/samurai_hat.png';
+    else if (id === 'effect_dragon') img.src = 'assets/dragon_aura.png';
+    return img;
   }
 
   _onCorrect(letter) {
@@ -909,8 +1102,7 @@ class LobbyStickmanScene {
     this._raf = null;
     this._last = 0;
     
-    this.handVfxImage = new Image();
-    this.handVfxImage.src = 'assets/hand_vfx.png';
+    this.handVfxImage = createPingPongVideo('assets/hand-vfx.webm');
 
     this.ninjaEyeImage = new Image();
     this.ninjaEyeImage.src = 'assets/ninja_eye.png';
@@ -921,6 +1113,13 @@ class LobbyStickmanScene {
     // Set to a fighting pose for the base pose so it breathes naturally!
     this.stickman.pose = POSES.FightStance;
     this.stickman.activeHand = 'RIGHT'; 
+  }
+
+  setConfig(outfit, effect) {
+    this.stickman.outfit = outfit;
+    this.stickman.effect = effect;
+    this.stickman.outfitImg = getOutfitHat(outfit);
+    this.stickman.effectImg = getEffectImg(effect);
   }
 
   start() {

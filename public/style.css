@@ -49,8 +49,8 @@ button { cursor: pointer; font-family: var(--font); }
 }
 .hidden { display: none !important; }
 .hidden-panel { display: none !important; }
-#shop-panel, #settings-panel { display: flex !important; }
-#shop-panel:not(.active), #settings-panel:not(.active) { opacity: 0; pointer-events: none; transform: translate(-50%,-50%) scale(0.94); }
+#shop-panel, #settings-panel, #friend-panel { display: flex !important; }
+#shop-panel:not(.active), #settings-panel:not(.active), #friend-panel:not(.active) { opacity: 0; pointer-events: none; transform: translate(-50%,-50%) scale(0.94); }
 
 /* ── LOADING ──────────────────────────────────────────────────────────────── */
 .loader-content { text-align: center; }
@@ -233,8 +233,8 @@ button { cursor: pointer; font-family: var(--font); }
   border-color: var(--red-bright); color: var(--red-bright);
 }
 
-/* ── MODAL PANELS (SHOP, SETTINGS) ────────────────────────── */
-#shop-panel, #settings-panel {
+/* ── MODAL PANELS (SHOP, SETTINGS, FRIEND) ────────────────────────── */
+#shop-panel, #settings-panel, #friend-panel {
   background: var(--panel); backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 20px; padding: 32px;
@@ -247,8 +247,9 @@ button { cursor: pointer; font-family: var(--font); }
 }
 #shop-panel { width: min(860px, 88vw); max-height: 82vh; }
 #settings-panel { width: min(400px, 88vw); max-height: 82vh; }
+#friend-panel { width: min(420px, 88vw); max-height: 82vh; }
 
-#shop-panel.active, #settings-panel.active {
+#shop-panel.active, #settings-panel.active, #friend-panel.active {
   opacity: 1; pointer-events: all;
   transform: translate(-50%, -50%) scale(1);
 }
@@ -521,9 +522,16 @@ button { cursor: pointer; font-family: var(--font); }
   color: var(--text); padding: 10px 22px; border-radius: 6px; transition: .2s;
 }
 .shop-tabs .tab.active { background: var(--red); font-weight: 700; }
-.shop-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 18px; overflow-y: auto; flex: 1; padding-right: 4px;
+.shop-grid.horizontal-grid {
+  display: flex; flex-direction: row; flex-wrap: nowrap;
+  gap: 24px; overflow-x: auto; overflow-y: hidden; padding: 20px;
+  align-items: center; justify-content: flex-start;
+  min-height: 250px;
+}
+.shop-grid.horizontal-grid::-webkit-scrollbar { height: 12px; }
+.shop-grid.horizontal-grid::-webkit-scrollbar-thumb { background: rgba(255,51,85,0.7); border-radius: 6px; }
+.shop-grid.horizontal-grid .shop-item {
+  min-width: 200px; max-width: 250px; flex-shrink: 0;
 }
 .shop-item {
   background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.08);

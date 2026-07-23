@@ -67,26 +67,27 @@ io.on('connection', (socket) => {
   socket.on('joinRandom', (data) => {
     socket.hero = data && data.avatar ? data.avatar : 'hero_pig';
     socket.playerName = data && data.name ? data.name : 'SPELLCASTER';
+    socket.outfit = data && data.outfit ? data.outfit : null;
+    socket.effect = data && data.effect ? data.effect : null;
     
-    if (matchmakingQueue && matchmakingQueue !== socket) {
-      const roomId = `room_${matchmakingQueue.id}_${socket.id}`;
+    if (matchmakingQueue && matchmakingQueue.id !== socket.id) {
       const p1 = matchmakingQueue;
       const p2 = socket;
+      matchmakingQueue = null;
       
-      const gameRoom = new GameRoom(roomId, io, p1.id, p2.id);
-      rooms.set(roomId, gameRoom);
-      
+      const roomId = 'room_' + p1.id + '_' + p2.id;
       p1.join(roomId);
       p2.join(roomId);
-      
       p1.roomId = roomId;
       p2.roomId = roomId;
-      
-      p1.emit('matchStarted', { roomId, playerNum: 1, enemyHero: p2.hero, enemyName: p2.playerName });
-      p2.emit('matchStarted', { roomId, playerNum: 2, enemyHero: p1.hero, enemyName: p1.playerName });
+
+      const gameRoom = new GameRoom(roomId, io, p1.id, p2.id);
+      rooms.set(roomId, gameRoom);
+
+      p1.emit('matchStarted', { roomId, playerNum: 1, enemyHero: p2.hero, enemyName: p2.playerName, enemyOutfit: p2.outfit, enemyEffect: p2.effect });
+      p2.emit('matchStarted', { roomId, playerNum: 2, enemyHero: p1.hero, enemyName: p1.playerName, enemyOutfit: p1.outfit, enemyEffect: p1.effect });
       
       gameRoom.start();
-      matchmakingQueue = null;
     } else {
       matchmakingQueue = socket;
     }
@@ -102,6 +103,8 @@ io.on('connection', (socket) => {
   socket.on('createRoom', (data) => {
     socket.hero = data && data.avatar ? data.avatar : 'hero_pig';
     socket.playerName = data && data.name ? data.name : 'SPELLCASTER';
+    socket.outfit = data && data.outfit ? data.outfit : null;
+    socket.effect = data && data.effect ? data.effect : null;
     const roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
     socket.join(roomId);
     socket.roomId = roomId;
@@ -113,19 +116,26 @@ io.on('connection', (socket) => {
     let code = '';
     let hero = 'hero_pig';
     let name = 'SPELLCASTER';
+    let outfit = null;
+    let effect = null;
     
     if (typeof data === 'string') {
       code = data.toUpperCase();
     } else if (data && data.code) {
       code = data.code.toUpperCase();
-      hero = data.avatar || data.hero || 'hero_pig';
-      name = data.name || 'SPELLCASTER';
+      let pData = data.playerData || data;
+      hero = pData.avatar || pData.hero || 'hero_pig';
+      name = pData.name || 'SPELLCASTER';
+      outfit = pData.outfit || null;
+      effect = pData.effect || null;
     } else {
       return;
     }
     
     socket.hero = hero;
     socket.playerName = name;
+    socket.outfit = outfit;
+    socket.effect = effect;
     
     const room = io.sockets.adapter.rooms.get(code);
     if (room && room.size === 1) {
@@ -139,8 +149,8 @@ io.on('connection', (socket) => {
       const gameRoom = new GameRoom(code, io, p1.id, p2.id);
       rooms.set(code, gameRoom);
       
-      p1.emit('matchStarted', { roomId: code, playerNum: 1, enemyHero: p2.hero, enemyName: p2.playerName });
-      p2.emit('matchStarted', { roomId: code, playerNum: 2, enemyHero: p1.hero, enemyName: p1.playerName });
+      p1.emit('matchStarted', { roomId: code, playerNum: 1, enemyHero: p2.hero, enemyName: p2.playerName, enemyOutfit: p2.outfit, enemyEffect: p2.effect });
+      p2.emit('matchStarted', { roomId: code, playerNum: 2, enemyHero: p1.hero, enemyName: p1.playerName, enemyOutfit: p1.outfit, enemyEffect: p1.effect });
       
       gameRoom.start();
     } else {

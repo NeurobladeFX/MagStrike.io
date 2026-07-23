@@ -8,6 +8,8 @@ const appState = {
   credits: 0,
   level: 1,
   avatar: 'hero_pig',
+  outfit: null,
+  effect: null,
   playerName: 'SPELLCASTER',
   wpmRecord: 0,
   match: {
@@ -162,6 +164,8 @@ const app = {
         appState.level = parsed.level || 1;
         appState.wpmRecord = parsed.wpmRecord || 0;
         appState.avatar = parsed.avatar || 'hero_pig';
+        appState.outfit = parsed.outfit || null;
+        appState.effect = parsed.effect || null;
         appState.playerName = parsed.playerName || 'SPELLCASTER';
       } catch (e) { console.error('Save corrupt'); }
     }
@@ -174,6 +178,8 @@ const app = {
       level: appState.level,
       wpmRecord: appState.wpmRecord,
       avatar: appState.avatar,
+      outfit: appState.outfit,
+      effect: appState.effect,
       playerName: appState.playerName
     }));
     this.updateGlobalUI();
@@ -217,6 +223,10 @@ const app = {
     
     const avEl = document.getElementById('my-avatar');
     if (avEl) avEl.src = this.getAvatarSrc(appState.avatar);
+    
+    if (window.lobbyGraphics) {
+      window.lobbyGraphics.setConfig(appState.outfit, appState.effect);
+    }
   },
 
   changeScene(sceneId) {
@@ -230,7 +240,10 @@ const app = {
         const c = document.getElementById('lobby-stickman-canvas');
         if (c) window.lobbyGraphics = new LobbyStickmanScene(c);
       }
-      if (window.lobbyGraphics) window.lobbyGraphics.start();
+      if (window.lobbyGraphics) {
+        window.lobbyGraphics.setConfig(appState.outfit, appState.effect);
+        window.lobbyGraphics.start();
+      }
     } else {
       if (window.lobbyGraphics) window.lobbyGraphics.stop();
     }
@@ -240,6 +253,7 @@ const app = {
     document.getElementById('profile-panel').classList.add('active');
     document.getElementById('profile-name-input').value = appState.playerName;
     this.renderProfileAvatars();
+    this.updateProfilePreview();
   },
 
   closeProfile() {
@@ -248,9 +262,18 @@ const app = {
 
   saveProfile() {
     const newName = document.getElementById('profile-name-input').value.trim();
-    if (newName) appState.playerName = newName.toUpperCase();
+    if (newName) {
+      appState.playerName = newName.substring(0, 15).toUpperCase();
+    }
     this.saveGame();
     this.closeProfile();
+  },
+
+  updateProfilePreview() {
+    const previewAv = document.getElementById('profile-current-avatar');
+    if (previewAv) previewAv.src = this.getAvatarSrc(appState.avatar);
+    const previewName = document.getElementById('profile-current-name');
+    if (previewName) previewName.innerText = appState.playerName;
   },
 
   renderProfileAvatars() {
@@ -273,6 +296,7 @@ const app = {
         appState.avatar = e.target.result;
         this.saveGame();
         this.renderProfileAvatars();
+        this.updateProfilePreview();
       };
       reader.readAsDataURL(file);
     }
@@ -280,15 +304,17 @@ const app = {
 
   selectProfileAvatar(avId) {
     appState.avatar = avId;
-    this.renderProfileAvatars(); // Re-render to highlight
+    this.renderProfileAvatars();
+    this.updateProfilePreview();
   },
 
   openShop() {
-    document.getElementById('shop-panel').classList.add('active');
+    this.changeScene('shop-screen');
+    shop.render();
   },
   
   closeShop() {
-    document.getElementById('shop-panel').classList.remove('active');
+    this.changeScene('lobby-screen');
   },
 
   openLeaderboard() {
@@ -363,17 +389,77 @@ const app = {
     document.getElementById('settings-panel').classList.remove('active');
   },
 
+  openFriendMenu() {
+    document.getElementById('friend-panel').classList.add('active');
+  },
+
+  closeFriendMenu() {
+    document.getElementById('friend-panel').classList.remove('active');
+  },
+
   findMatch() {
     this.changeScene('waiting-screen');
-    const waitMyAv = document.getElementById('wait-my-avatar');
-    const waitMyName = document.getElementById('wait-my-name');
-    if (waitMyAv) waitMyAv.src = this.getAvatarSrc(appState.avatar);
-    if (waitMyName) waitMyName.innerText = appState.playerName;
+    const myNameEl = document.getElementById('wait-my-name');
+    const myAvEl = document.getElementById('wait-my-avatar');
+    if (myNameEl) myNameEl.innerText = appState.playerName;
+    if (myAvEl) myAvEl.src = this.getAvatarSrc(appState.avatar);
 
-    document.getElementById('wait-enemy-side').classList.add('hidden');
-    const ticker = document.getElementById('match-ticker');
-    if (ticker) ticker.innerText = 'SEARCHING FOR OPPONENT...';
-    if (socket) socket.emit('joinRandom', { avatar: appState.avatar, name: appState.playerName });
+    const rcDisplay = document.getElementById('room-code-display');
+    if (rcDisplay) {
+      rcDisplay.innerText = '';
+      rcDisplay.classList.add('hidden');
+    }
+
+    if (socket) {
+      socket.emit('joinRandom', { 
+        name: appState.playerName, 
+        avatar: appState.avatar,
+        outfit: appState.outfit,
+        effect: appState.effect
+      });
+    } else {
+      setTimeout(() => this.startMatch({ roomId: 'local', playerNum: 1, enemyName: 'GANDALF', enemyHero: 'hero_gold' }), 1000);
+    }
+  },
+
+  hostGame() {
+    this.changeScene('waiting-screen');
+    const myNameEl = document.getElementById('wait-my-name');
+    const myAvEl = document.getElementById('wait-my-avatar');
+    if (myNameEl) myNameEl.innerText = appState.playerName;
+    if (myAvEl) myAvEl.src = this.getAvatarSrc(appState.avatar);
+    
+    if (socket) {
+      socket.emit('createRoom', {
+        name: appState.playerName, 
+        avatar: appState.avatar,
+        outfit: appState.outfit,
+        effect: appState.effect
+      });
+    }
+  },
+
+  joinGame() {
+    const code = prompt("Enter 4-letter Room Code to Join:");
+    if (!code || code.trim().length !== 4) return;
+    
+    this.changeScene('waiting-screen');
+    const myNameEl = document.getElementById('wait-my-name');
+    const myAvEl = document.getElementById('wait-my-avatar');
+    if (myNameEl) myNameEl.innerText = appState.playerName;
+    if (myAvEl) myAvEl.src = this.getAvatarSrc(appState.avatar);
+    
+    if (socket) {
+      socket.emit('joinRoom', {
+        code: code.trim().toUpperCase(),
+        playerData: {
+          name: appState.playerName, 
+          avatar: appState.avatar,
+          outfit: appState.outfit,
+          effect: appState.effect
+        }
+      });
+    }
   },
 
   cancelMatch() {
@@ -425,7 +511,14 @@ const app = {
     document.getElementById('combo-count').innerText = '1';
 
     // Start the high-performance combat renderer (LetterBelt starts inside)
-    if (graphics) graphics.start();
+    if (graphics) {
+      if (appState.match.isPlayer1) {
+        graphics.setConfig(appState.outfit, appState.effect, appState.match.enemyOutfit, appState.match.enemyEffect);
+      } else {
+        graphics.setConfig(appState.match.enemyOutfit, appState.match.enemyEffect, appState.outfit, appState.effect);
+      }
+      graphics.start();
+    }
   },
 
   matchTick() {
@@ -484,6 +577,8 @@ if (socket) {
     // data: { roomId, playerNum, enemyHero, enemyName }
     appState.match.isPlayer1 = (data.playerNum === 1);
     const eName = data.enemyName || '???';
+    appState.match.enemyOutfit = data.enemyOutfit || null;
+    appState.match.enemyEffect = data.enemyEffect || null;
     
     // Set names in waiting & VS screens
     const vsMyName = document.getElementById('vs-my-name');
@@ -558,6 +653,18 @@ if (socket) {
 
   socket.on('gameOver', (data) => {
     app.endGame(data.winner);
+  });
+
+  socket.on('roomCreated', (roomId) => {
+    const rcDisplay = document.getElementById('room-code-display');
+    const ticker = document.getElementById('match-ticker');
+    if (rcDisplay) {
+      rcDisplay.innerHTML = `ROOM CODE: <span style="cursor:pointer; text-decoration:underline;" onclick="navigator.clipboard.writeText('${roomId}'); alert('Code copied!')">${roomId}</span>`;
+      rcDisplay.classList.remove('hidden');
+    }
+    if (ticker) {
+      ticker.innerText = 'WAITING FOR FRIEND...';
+    }
   });
 
   socket.on('roomError', (msg) => {
