@@ -417,8 +417,20 @@ const app = {
         outfit: appState.outfit,
         effect: appState.effect
       });
+
+      // Fallback to bot if no match found quickly
+      appState.botFallbackTimer = setTimeout(() => {
+        socket.emit('leaveQueue');
+        app.handleMatchStarted({
+          roomId: 'local', 
+          playerNum: 1, 
+          enemyName: 'GANDALF_BOT', 
+          enemyHero: 'hero_gold',
+          enemyOutfit: 'outfit_mage'
+        });
+      }, 4000);
     } else {
-      setTimeout(() => this.startMatch({ roomId: 'local', playerNum: 1, enemyName: 'GANDALF', enemyHero: 'hero_gold' }), 1000);
+      setTimeout(() => app.handleMatchStarted({ roomId: 'local', playerNum: 1, enemyName: 'GANDALF_BOT', enemyHero: 'hero_gold' }), 1000);
     }
   },
 
@@ -463,6 +475,7 @@ const app = {
   },
 
   cancelMatch() {
+    if (appState.botFallbackTimer) clearTimeout(appState.botFallbackTimer);
     if (socket) socket.emit('leaveQueue');
     this.changeScene('lobby-screen');
   },
@@ -568,12 +581,14 @@ const app = {
   
   returnToLobby() {
     this.changeScene('lobby-screen');
-  }
-};
+  },
+  
+  handleMatchStarted(data) {
+    if (appState.botFallbackTimer) {
+      clearTimeout(appState.botFallbackTimer);
+      appState.botFallbackTimer = null;
+    }
 
-// --- Networking (Socket) ---
-if (socket) {
-  socket.on('matchStarted', (data) => {
     // data: { roomId, playerNum, enemyHero, enemyName }
     appState.match.isPlayer1 = (data.playerNum === 1);
     const eName = data.enemyName || '???';
@@ -607,7 +622,12 @@ if (socket) {
     if (gameEnemyAvatar) gameEnemyAvatar.src = app.getAvatarSrc(data.enemyHero);
     
     app.startCountdown();
-  });
+  }
+};
+
+// --- Networking (Socket) ---
+if (socket) {
+  socket.on('matchStarted', (data) => app.handleMatchStarted(data));
 
   socket.on('gameState', (state) => {
     if (!appState.match.inMatch) return;

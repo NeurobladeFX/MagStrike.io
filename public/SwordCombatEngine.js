@@ -39,18 +39,18 @@ function createPingPongVideo(src) {
   vid.setAttribute('playsinline', '');
 
   let isReversing = false;
-  
+
   const playForward = () => {
     isReversing = false;
     vid.playbackRate = 1;
-    vid.play().catch(()=>{});
+    vid.play().catch(() => { });
   };
 
   const playReverse = () => {
     isReversing = true;
     try {
       vid.playbackRate = -1;
-      vid.play().catch(()=>{});
+      vid.play().catch(() => { });
     } catch (e) {
       // Fallback if browser doesn't support negative playbackRate
       vid.currentTime = 0;
@@ -111,7 +111,7 @@ const POSES = {
 
   // ── Fight Stance (Fists up, ready) ──
   FightStance: {
-    root: { x: 0, y: 15 }, 
+    root: { x: 0, y: 15 },
     head: { x: 15, y: -160 }, neck: { x: 5, y: -140 }, shoulder: { x: 0, y: -130 },
     elbowR: { x: 25, y: -100 }, wristR: { x: 65, y: -120 }, // Front arm ready to strike
     elbowL: { x: -25, y: -100 }, wristL: { x: -15, y: -130 }, // Back arm guarding face
@@ -243,7 +243,7 @@ class WordProjectile {
     // Render word text glowing brightly as the projectile
     ctx.save();
     ctx.translate(this.x, this.y);
-    
+
     // Add dynamic spinning physics for the letter!
     ctx.rotate(this.progress * Math.PI * 8 * (this.owner === 'p1' ? 1 : -1));
 
@@ -253,7 +253,7 @@ class WordProjectile {
     ctx.font = '900 48px "Outfit", system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    
+
     // Draw text with outline for better readability
     ctx.strokeStyle = this.color;
     ctx.lineWidth = 3;
@@ -402,13 +402,13 @@ class Stickman {
 
     // Phase 1: Windup (Smoothly switch hands to prepare)
     // Slower speed for more frames and visible smooth transition
-    this._go(windupPose, 5); 
-    
+    this._go(windupPose, 5);
+
     // Phase 2: Forward Spell Thrust
     setTimeout(() => {
       if (this.health <= 0) return;
       this._flashTimer = 0.18; // brighter flash
-      this._go(strikePose, 60); 
+      this._go(strikePose, 60);
       this._shakePow = 0.65; // harder camera shake
 
       // Calculate the extended hand position to spawn projectile from
@@ -419,8 +419,8 @@ class Stickman {
         x: this.rootX + (targetRoot.x + targetJoint.x) * this.facing + this._shake.x,
         y: this.groundY + targetRoot.y + targetJoint.y + this._shake.y
       };
-      
-      for(let i = 0; i < 8; i++) {
+
+      for (let i = 0; i < 8; i++) {
         this.particles.push(new Spark(wp.x, wp.y, this.accent));
       }
       this.particles.push(new ShockwaveRing(wp.x, wp.y, '#ffffff'));
@@ -431,7 +431,7 @@ class Stickman {
       setTimeout(() => {
         if (this.health <= 0) return;
         this._attacking = false;
-        this._go('IdleStance', 15); 
+        this._go('IdleStance', 15);
       }, 140);
     }, 240); // 240ms duration (added more frames) to let the player clearly SEE the hand switch
   }
@@ -587,7 +587,7 @@ class Stickman {
         const r = J.root;
         const rx = this.rootX + r.x * this.facing;
         const ry = this.groundY + r.y;
-        
+
         this.particles.push(new FogParticle(
           rx + (Math.random() - 0.5) * 40,
           ry + J.footR.y - Math.random() * 80
@@ -636,10 +636,10 @@ class Stickman {
       ctx.save();
       // Move slightly further away from the face outline (closer to center)
       ctx.translate(J.head.x + 1, headY - 1);
-      
+
       // Use screen composite so the black background of the generated image becomes fully transparent
       ctx.globalCompositeOperation = 'screen';
-      
+
       // Ninja eyes should face forward depending on stickman scale facing
       // Increase height of the eye significantly and adjust Y to keep it centered
       ctx.drawImage(this.eyeImage, -14, -19, 28, 38);
@@ -650,11 +650,11 @@ class Stickman {
     if (this.outfitImg && this.outfitImg.complete && this.outfitImg.naturalWidth > 0) {
       ctx.save();
       ctx.translate(J.head.x, headY);
-      
+
       // Calculate rotation based on neck to head vector
       const dx = J.head.x - J.neck.x;
       const dy = headY - neckY;
-      let angle = Math.atan2(dy, dx) + Math.PI/2; 
+      let angle = Math.atan2(dy, dx) + Math.PI / 2;
       ctx.rotate(angle);
 
       if (this.outfit === 'outfit_mage') {
@@ -663,10 +663,10 @@ class Stickman {
         ctx.save();
         ctx.scale(-this.facing, 1);
         // You can tweak these 4 numbers: X, Y, Width, Height
-        ctx.drawImage(this.outfitImg, -40, -45, 80, 45); 
+        ctx.drawImage(this.outfitImg, -35, -30, 70, 32);
         ctx.restore();
       }
-      
+
       ctx.restore();
     }
 
@@ -692,33 +692,33 @@ class Stickman {
     ctx.beginPath();
     ctx.arc(x, y, 8, 0, Math.PI * 2);
     ctx.fill();
-    
+
     // Draw the generated magic hand VFX video if loaded (smaller)
     const w = this.vfxImage.naturalWidth || this.vfxImage.videoWidth;
     const h = this.vfxImage.naturalHeight || this.vfxImage.videoHeight;
-    
+
     if (this.vfxImage && (this.vfxImage.complete || this.vfxImage.readyState >= 2) && w > 0 && h > 0) {
       ctx.globalCompositeOperation = 'screen';
       ctx.globalAlpha = 0.95;
-      
+
       const aspect = w / h;
       const baseSize = 40;
       let drawW = baseSize;
       let drawH = baseSize;
-      
+
       if (aspect > 1) {
         drawH = baseSize / aspect; // Adjust height to fix vertical stretching
       } else {
         drawW = baseSize * aspect;
       }
-      
+
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(Date.now() / 150); // fast magical rotation
-      ctx.drawImage(this.vfxImage, -drawW/2, -drawH/2, drawW, drawH); 
+      ctx.drawImage(this.vfxImage, -drawW / 2, -drawH / 2, drawW, drawH);
       ctx.restore();
     }
-    
+
     ctx.restore();
   }
 }
@@ -890,7 +890,7 @@ class DualCombatScene {
     this.p1.effect = p1Effect;
     this.p1.outfitImg = this._loadImage(p1Outfit);
     this.p1.effectImg = this._loadImage(p1Effect);
-    
+
     this.p2.outfit = p2Outfit;
     this.p2.effect = p2Effect;
     this.p2.outfitImg = this._loadImage(p2Outfit);
@@ -925,7 +925,7 @@ class DualCombatScene {
         '#00d4ff',
         'p1', // owner
         (hitX, hitY) => {
-          this.hitStop = 0.08; 
+          this.hitStop = 0.08;
           this.p2.takeHit();
         },
         spellId
@@ -1008,17 +1008,17 @@ class DualCombatScene {
           let dx = pA.x - pB.x;
           let dy = pA.y - pB.y;
           // Collision distance: ~40px radius (1600 squared)
-          if (dx * dx + dy * dy < 2500) { 
+          if (dx * dx + dy * dy < 2500) {
             pA.dead = true;
             pB.dead = true;
             let mx = (pA.x + pB.x) / 2;
             let my = (pA.y + pB.y) / 2;
             // Explosion VFX at point of collision
-            for(let k=0; k<20; k++) this.p1.particles.push(new Spark(mx, my, '#ffffff'));
+            for (let k = 0; k < 20; k++) this.p1.particles.push(new Spark(mx, my, '#ffffff'));
             this.p1.particles.push(new ShockwaveRing(mx, my, pA.color));
             this.p1.particles.push(new ShockwaveRing(mx, my, pB.color));
             this._shakePow = 0.4;
-            
+
             if (typeof window.onSpellClash === 'function') window.onSpellClash(pA.id, pB.id);
           }
         }
@@ -1101,7 +1101,7 @@ class LobbyStickmanScene {
     this.running = false;
     this._raf = null;
     this._last = 0;
-    
+
     this.handVfxImage = createPingPongVideo('assets/hand-vfx.webm');
 
     this.ninjaEyeImage = new Image();
@@ -1109,10 +1109,10 @@ class LobbyStickmanScene {
 
     // Place stickman in center of the large canvas
     this.stickman = new Stickman(this.canvas.width / 2, this.canvas.height - 40, 1, '#000000', '#00d4ff', this.handVfxImage, this.ninjaEyeImage);
-    
+
     // Set to a fighting pose for the base pose so it breathes naturally!
     this.stickman.pose = POSES.FightStance;
-    this.stickman.activeHand = 'RIGHT'; 
+    this.stickman.activeHand = 'RIGHT';
   }
 
   setConfig(outfit, effect) {
@@ -1146,14 +1146,14 @@ class LobbyStickmanScene {
   _draw() {
     const { ctx, canvas } = this;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Scale stickman up to be huge in the lobby, perfectly centered
     ctx.save();
     // Translate to center, scale, translate back so he remains centered!
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.scale(1.25, 1.25);
     ctx.translate(-canvas.width / 2, -canvas.height / 2);
-    
+
     this.stickman.draw(ctx);
     ctx.restore();
   }
