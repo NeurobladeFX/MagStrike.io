@@ -417,18 +417,6 @@ const app = {
         outfit: appState.outfit,
         effect: appState.effect
       });
-
-      // Fallback to bot if no match found quickly
-      appState.botFallbackTimer = setTimeout(() => {
-        socket.emit('leaveQueue');
-        app.handleMatchStarted({
-          roomId: 'local', 
-          playerNum: 1, 
-          enemyName: 'GANDALF_BOT', 
-          enemyHero: 'hero_gold',
-          enemyOutfit: 'outfit_mage'
-        });
-      }, 4000);
     } else {
       setTimeout(() => app.handleMatchStarted({ roomId: 'local', playerNum: 1, enemyName: 'GANDALF_BOT', enemyHero: 'hero_gold' }), 1000);
     }
