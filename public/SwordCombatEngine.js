@@ -663,7 +663,7 @@ class Stickman {
         ctx.save();
         ctx.scale(-this.facing, 1);
         // You can tweak these 4 numbers: X, Y, Width, Height
-        ctx.drawImage(this.outfitImg, -35, -30, 70, 32);
+        ctx.drawImage(this.outfitImg, -35, -25, 70, 32);
         ctx.restore();
       }
 
