@@ -1,4 +1,9 @@
-const socket = typeof io !== 'undefined' ? io('https://magstrike-io.onrender.com') : null;
+const socket = typeof io !== 'undefined' ? io('https://magstrike-io.onrender.com', {
+  transports: ['polling', 'websocket'],
+  reconnectionAttempts: 10,
+  reconnectionDelay: 2000,
+  timeout: 20000
+}) : null;
 
 // --- State ---
 const MAX_HEALTH = 100;
