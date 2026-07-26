@@ -280,11 +280,11 @@
     <div class="settings-content">
       <div class="setting-row">
         <span>MASTER VOLUME</span>
-        <input type="range" min="0" max="100" value="100" class="vol-slider">
+        <input type="range" min="0" max="100" value="100" class="vol-slider" id="master-vol-slider" oninput="app.updateVolume()">
       </div>
       <div class="setting-row">
         <span>MUSIC</span>
-        <button class="toggle-btn active" onclick="this.classList.toggle('active')">ON</button>
+        <button id="music-toggle-btn" class="toggle-btn active" onclick="app.toggleMusic(this)">ON</button>
       </div>
       <div class="setting-row">
         <span>SOUND EFFECTS</span>
@@ -422,6 +422,8 @@
     </div>
     <button class="huge-play-btn" onclick="app.returnToLobby()">BACK TO BASE</button>
   </div>
+
+  <audio id="bg-music" src="assets/Gravel_Road_Vigil.mp3" loop></audio>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="SwordCombatEngine.js?v=4"></script>

@@ -153,6 +153,24 @@ const app = {
   init() {
     this.loadSave();
 
+    // Autoplay music on first interaction
+    const initMusic = () => {
+      const audio = document.getElementById('bg-music');
+      const btn = document.getElementById('music-toggle-btn');
+      if (audio && btn && btn.classList.contains('active')) {
+        audio.play().catch(e => console.log('Autoplay blocked', e));
+      }
+      document.removeEventListener('click', initMusic);
+      document.removeEventListener('keypress', initMusic);
+    };
+    document.addEventListener('click', initMusic);
+    document.addEventListener('keypress', initMusic);
+
+    // Setup input
+    window.addEventListener('keypress', (e) => {
+      this.handleKeyPress(e.key.toUpperCase());
+    });
+
     // Animated loading bar then transition to lobby
     let prog = 0;
     const bar = document.getElementById('progress-bar');
@@ -588,6 +606,30 @@ const app = {
     document.getElementById('settings-panel').classList.remove('active');
   },
 
+  updateVolume() {
+    const slider = document.getElementById('master-vol-slider');
+    const audio = document.getElementById('bg-music');
+    if (audio && slider) {
+      audio.volume = slider.value / 100;
+    }
+  },
+
+  toggleMusic(btn) {
+    const isNowOff = btn.classList.contains('active');
+    const audio = document.getElementById('bg-music');
+    if (!audio) return;
+
+    if (isNowOff) {
+      btn.classList.remove('active');
+      btn.innerText = 'OFF';
+      audio.pause();
+    } else {
+      btn.classList.add('active');
+      btn.innerText = 'ON';
+      audio.play().catch(e => console.log(e));
+    }
+  },
+
   openFriendMenu() {
     document.getElementById('friend-panel').classList.add('active');
   },
@@ -697,6 +739,8 @@ const app = {
     const myAvEl = document.getElementById('wait-my-avatar');
     if (myNameEl) myNameEl.innerText = appState.playerName;
     if (myAvEl) myAvEl.src = this.getAvatarSrc(appState.avatar);
+    
+
     
     if (socket) {
       socket.emit('joinRoom', {
