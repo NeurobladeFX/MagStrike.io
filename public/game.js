@@ -946,6 +946,7 @@ const app = {
   },
   
   returnToLobby() {
+    if (socket) socket.emit('leaveRoom');
     this.changeScene('lobby-screen');
   },
   

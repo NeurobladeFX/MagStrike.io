@@ -239,6 +239,19 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('leaveRoom', () => {
+    if (socket.roomId) {
+      socket.leave(socket.roomId);
+      // Clean up the room if it still exists
+      if (rooms.has(socket.roomId)) {
+        rooms.delete(socket.roomId);
+        // Let the opponent know if they are still there
+        socket.to(socket.roomId).emit('roomError', 'OPPONENT LEFT');
+      }
+      socket.roomId = null;
+    }
+  });
+
   socket.on('disconnect', () => {
     if (matchmakingQueue === socket) {
       matchmakingQueue = null;
