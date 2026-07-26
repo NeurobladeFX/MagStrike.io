@@ -237,6 +237,8 @@ io.on('connection', (socket) => {
     if (socket.roomId && rooms.has(socket.roomId)) {
       rooms.get(socket.roomId).handleClash(data);
     }
+  });
+
   socket.on('leaveRoom', () => {
     if (socket.roomId) {
       socket.leave(socket.roomId);
