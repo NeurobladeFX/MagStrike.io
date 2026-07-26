@@ -36,14 +36,14 @@ localStorage.setItem('magstrike_player_id', appState.playerId);
 
 // ─── LEADERBOARD DATA SYSTEM ──────────────────────────────────────────────────
 const DEFAULT_LEADERBOARD = [
-  { id: 'bot_1', name: "SHADOWMAGE", avatar: "avatar_stickman_assassin", level: 42, wpm: 9450, gold: 28500, isPlayer: false },
-  { id: 'bot_2', name: "GANDALF_BLACK", avatar: "avatar_stickman_elder", level: 38, wpm: 8200, gold: 19400, isPlayer: false },
-  { id: 'bot_3', name: "SPELL_KNIGHT", avatar: "avatar_stickman_warrior", level: 31, wpm: 7100, gold: 14200, isPlayer: false },
-  { id: 'bot_4', name: "VOID_CASTER", avatar: "avatar_stickman_mage", level: 27, wpm: 6350, gold: 11000, isPlayer: false },
-  { id: 'bot_5', name: "RUNEMASTER", avatar: "avatar_stickman_rogue", level: 22, wpm: 5400, gold: 8900, isPlayer: false },
-  { id: 'bot_6', name: "NEO_WIZARD", avatar: "avatar_stickman_youth", level: 18, wpm: 4600, gold: 6500, isPlayer: false },
-  { id: 'bot_7', name: "NOOB_SPELLER", avatar: "avatar_stickman_assassin", level: 12, wpm: 3050, gold: 3200, isPlayer: false },
-  { id: 'bot_8', name: "GUEST_007", avatar: "avatar_stickman_warrior", level: 5, wpm: 1200, gold: 800, isPlayer: false }
+  { id: 'bot_1', name: "SHADOWMAGE", avatar: "avatar_stickman_assassin", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_2', name: "GANDALF_BLACK", avatar: "avatar_stickman_elder", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_3', name: "SPELL_KNIGHT", avatar: "avatar_stickman_warrior", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_4', name: "VOID_CASTER", avatar: "avatar_stickman_mage", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_5', name: "RUNEMASTER", avatar: "avatar_stickman_rogue", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_6', name: "NEO_WIZARD", avatar: "avatar_stickman_youth", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_7', name: "NOOB_SPELLER", avatar: "avatar_stickman_assassin", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_8', name: "GUEST_007", avatar: "avatar_stickman_warrior", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false }
 ];
 
 function getLeaderboardData() {
@@ -551,6 +551,30 @@ const app = {
         `;
       }).join('');
     }
+
+    const localPlayerRow = document.getElementById('lb-local-player-row');
+    if (localPlayerRow) {
+      const myIdx = list.findIndex(p => p.isPlayer);
+      if (myIdx !== -1) {
+        const item = list[myIdx];
+        const rankNum = myIdx + 1;
+        const rankClass = rankNum <= 3 ? `rank-${rankNum}` : '';
+        localPlayerRow.innerHTML = `
+          <div class="lb-row ${rankClass}" onclick="app.viewPlayerProfile({name: '${item.name}', level: ${item.level||1}, wins: ${item.wins||0}, losses: ${item.losses||0}, wpm: ${item.wpm||0}, trophy: ${item.trophy||1}, avatar: '${item.avatar||'hero_pig'}'})" style="cursor: pointer; border: none; background: transparent; padding: 10px 20px;">
+            <div class="lb-rank-num">#${rankNum}</div>
+            <div class="lb-col-player">
+              <img class="lb-row-avatar" src="${this.getAvatarSrc(item.avatar)}" onerror="this.src='assets/avatar_default.png'">
+              <span>${item.name} <span style="color:#3daeff; font-size:0.85rem; font-weight:900;">(YOU)</span></span>
+            </div>
+            <div class="lb-col-level">Lvl. ${item.level || 1}</div>
+            <div class="lb-col-wpm">${item.wpm || 0} WPM</div>
+            <div class="lb-col-gold">🟡 ${app.formatGold(item.gold || 0)}</div>
+          </div>
+        `;
+      } else {
+        localPlayerRow.innerHTML = '';
+      }
+    }
   },
 
   openSettings() {
@@ -589,6 +613,18 @@ const app = {
       appState.credits += 1000000000;
       this.saveGame();
       alert('CODE REDEEMED! +1 BILLION GOLD!');
+      input.value = '';
+    } else if (code === 'DEVMAX') {
+      appState.level = 50;
+      appState.xp = 0;
+      appState.trophyRank = 7;
+      appState.trophyPoints = 0;
+      appState.credits += 1000000000;
+      appState.wpmRecord = Math.max(appState.wpmRecord, 9999);
+      appState.wins += 999;
+      this.saveGame();
+      this.updateGlobalUI();
+      alert('DEVMAX REDEEMED! ALL STATS MAXED OUT!');
       input.value = '';
     } else {
       alert('INVALID CODE');

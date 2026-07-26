@@ -243,9 +243,14 @@
           <div id="lb-countdown" style="font-weight:900; color:#ffcc00; font-size:1.1rem; text-shadow:0 0 10px #ffcc00; letter-spacing:1px;">TIME UNTIL RESET: --</div>
         </div>
         <div style="display:flex; gap:10px; padding: 15px 20px 5px 20px; justify-content:center;">
-          <button class="tab lb-tab active" onclick="app.setLeaderboardSort('level', event)" style="flex:1;">TOP LEVEL</button>
-          <button class="tab lb-tab" onclick="app.setLeaderboardSort('wpm', event)" style="flex:1;">MAX SPEED</button>
-          <button class="tab lb-tab" onclick="app.setLeaderboardSort('wins', event)" style="flex:1;">WEEKLY WINS</button>
+          <style>
+            .lb-tab { background: rgba(255,255,255,0.05); color: #aaa; border: 2px solid transparent; padding: 10px 0; border-radius: 8px; font-weight: 900; letter-spacing: 1px; cursor: pointer; transition: 0.2s; }
+            .lb-tab:hover { background: rgba(255,255,255,0.1); color: #fff; }
+            .lb-tab.active { background: rgba(255,51,85,0.2); color: #ff3355; border: 2px solid #ff3355; box-shadow: 0 0 10px rgba(255,51,85,0.3); }
+          </style>
+          <button class="lb-tab active" onclick="app.setLeaderboardSort('level', event)" style="flex:1;">TOP LEVEL</button>
+          <button class="lb-tab" onclick="app.setLeaderboardSort('wpm', event)" style="flex:1;">MAX SPEED</button>
+          <button class="lb-tab" onclick="app.setLeaderboardSort('wins', event)" style="flex:1;">WEEKLY WINS</button>
         </div>
         <div style="padding: 10px 20px;">
           <input type="text" id="leaderboard-search" placeholder="SEARCH MAGE..." style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 2px solid #333; color: #fff; border-radius: 8px; font-family: 'Outfit'; text-transform: uppercase; font-size: 1.1rem; outline: none; transition: border-color 0.2s;" onkeyup="app.renderLeaderboard()" onfocus="this.style.borderColor='#3daeff'" onblur="this.style.borderColor='#333'">
@@ -259,6 +264,8 @@
         </div>
         <div id="leaderboard-list" class="lb-table-body">
           <!-- JS injected rows -->
+        </div>
+        <div id="lb-local-player-row" style="position: sticky; bottom: 0; background: rgba(0,0,0,0.95); border-top: 2px solid #3daeff; box-shadow: 0 -5px 15px rgba(0,0,0,0.8); z-index: 10;">
         </div>
       </div>
     </div>
