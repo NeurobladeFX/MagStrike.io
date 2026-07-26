@@ -36,14 +36,14 @@ localStorage.setItem('magstrike_player_id', appState.playerId);
 
 // ─── LEADERBOARD DATA SYSTEM ──────────────────────────────────────────────────
 const DEFAULT_LEADERBOARD = [
-  { id: 'bot_1', name: "SHADOWMAGE", avatar: "avatar_stickman_assassin", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_2', name: "GANDALF_BLACK", avatar: "avatar_stickman_elder", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_3', name: "SPELL_KNIGHT", avatar: "avatar_stickman_warrior", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_4', name: "VOID_CASTER", avatar: "avatar_stickman_mage", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_5', name: "RUNEMASTER", avatar: "avatar_stickman_rogue", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_6', name: "NEO_WIZARD", avatar: "avatar_stickman_youth", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_7', name: "NOOB_SPELLER", avatar: "avatar_stickman_assassin", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_8', name: "GUEST_007", avatar: "avatar_stickman_warrior", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false }
+  { id: 'bot_1', name: "SHADOWMAGE", avatar: "hero_cat", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_2', name: "GANDALF_BLACK", avatar: "hero_dog", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_3', name: "SPELL_KNIGHT", avatar: "hero_bear", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_4', name: "VOID_CASTER", avatar: "hero_rabbit", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_5', name: "RUNEMASTER", avatar: "hero_fox", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_6', name: "NEO_WIZARD", avatar: "hero_panda", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_7', name: "NOOB_SPELLER", avatar: "hero_lion", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_8', name: "GUEST_007", avatar: "hero_pig", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false }
 ];
 
 function getLeaderboardData() {
@@ -51,15 +51,18 @@ function getLeaderboardData() {
   const raw = localStorage.getItem('typing_battle_leaderboard');
   if (raw) {
     try {
-      list = JSON.parse(raw);
+      let parsed = JSON.parse(raw);
+      // Keep only real network players (filter out cached bots)
+      list = parsed.filter(item => item.isPlayer && item.id !== 'local_player');
     } catch(e) { list = []; }
   }
-  if (!Array.isArray(list) || list.length === 0) {
-    list = JSON.parse(JSON.stringify(DEFAULT_LEADERBOARD));
-  }
+  
+  // Always append fresh zeroed bots
+  const bots = JSON.parse(JSON.stringify(DEFAULT_LEADERBOARD));
+  list.push(...bots);
 
   // Find or insert player entry
-  const playerIndex = list.findIndex(item => item.isPlayer || item.id === 'local_player');
+  const playerIndex = list.findIndex(item => item.id === 'local_player');
   const playerData = {
     id: 'local_player',
     name: appState.playerName || 'SPELLCASTER',
@@ -80,7 +83,7 @@ function getLeaderboardData() {
     list.push(playerData);
   }
 
-  // Sort descending by WPM
+  // Sort descending by WPM initially (app.renderLeaderboard will re-sort based on active tab)
   list.sort((a, b) => (b.wpm || 0) - (a.wpm || 0));
 
   // Save back to local storage
