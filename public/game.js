@@ -156,15 +156,7 @@ const app = {
   async init() {
     this.loadSave();
     
-    // Initialize CrazyGames SDK
-    if (window.CrazyGames && window.CrazyGames.SDK) {
-      try {
-        await window.CrazyGames.SDK.init();
-        console.log("CrazyGames SDK initialized");
-      } catch (e) {
-        console.error("CrazyGames SDK init failed", e);
-      }
-    }
+    // CrazyGames SDK removed for Basic Launch (no ads allowed)
 
     // Autoplay music on first interaction
     const initMusic = () => {
@@ -342,20 +334,7 @@ const app = {
     document.getElementById(sceneId).classList.add('active');
     appState.scene = sceneId;
     
-    // Request Banner ad in lobby
-    if (sceneId === 'lobby-screen' && window.CrazyGames && window.CrazyGames.SDK) {
-      try {
-        window.CrazyGames.SDK.banner.requestBanner({
-          id: 'crazygames-banner',
-          width: 468,
-          height: 60,
-        });
-      } catch (e) { console.error("Banner request error", e); }
-    } else if (window.CrazyGames && window.CrazyGames.SDK) {
-      try {
-        window.CrazyGames.SDK.banner.clearBanner('crazygames-banner');
-      } catch (e) { }
-    }
+
     
     // Manage lobby stickman rendering
     if (sceneId === 'lobby-screen') {
@@ -958,93 +937,8 @@ const app = {
   },
   
   showAd() {
-    const modal = document.getElementById('ad-modal');
-    
-    if (window.CrazyGames && window.CrazyGames.SDK) {
-      // Use official CrazyGames Rewarded Video
-      const callbacks = {
-        adStarted: () => {
-          if (modal) modal.style.display = 'flex';
-          const timerEl = document.getElementById('ad-timer');
-          const closeBtn = document.getElementById('ad-close-btn');
-          if (timerEl) {
-            timerEl.innerText = "ADVERTISEMENT PLAYING...";
-            timerEl.style.color = '#ff3355';
-          }
-          if (closeBtn) {
-            closeBtn.disabled = true;
-            closeBtn.style.opacity = '0.5';
-            closeBtn.style.cursor = 'not-allowed';
-          }
-        },
-        adFinished: () => {
-          this.finishAd();
-        },
-        adError: (error) => {
-          console.error('Ad Error', error);
-          if (modal) modal.style.display = 'none';
-          alert('Failed to load ad. Please try again later.');
-        }
-      };
-      
-      try {
-        window.CrazyGames.SDK.ad.requestAd('rewarded', callbacks);
-      } catch(e) {
-        console.error("SDK Ad Request Failed", e);
-        this.fallbackAd();
-      }
-    } else {
-      this.fallbackAd();
-    }
-  },
-  
-  fallbackAd() {
-    // Fallback Mock Ad Logic
-    const modal = document.getElementById('ad-modal');
-    const timerEl = document.getElementById('ad-timer');
-    const closeBtn = document.getElementById('ad-close-btn');
-    
-    if (modal && timerEl && closeBtn) {
-      modal.style.display = 'flex';
-      closeBtn.disabled = true;
-      closeBtn.style.opacity = '0.5';
-      closeBtn.style.cursor = 'not-allowed';
-      
-      let timeLeft = 5;
-      timerEl.innerText = `WAIT ${timeLeft} SECONDS...`;
-      timerEl.style.color = '#ff3355';
-      
-      if (appState.adTimer) clearInterval(appState.adTimer);
-      
-      appState.adTimer = setInterval(() => {
-        timeLeft--;
-        if (timeLeft > 0) {
-          timerEl.innerText = `WAIT ${timeLeft} SECONDS...`;
-        } else {
-          clearInterval(appState.adTimer);
-          timerEl.innerText = `REWARD UNLOCKED!`;
-          timerEl.style.color = '#2ecc71';
-          closeBtn.disabled = false;
-          closeBtn.style.opacity = '1';
-          closeBtn.style.cursor = 'pointer';
-        }
-      }, 1000);
-    }
-  },
-  
-  finishAd() {
-    const modal = document.getElementById('ad-modal');
-    if (modal) modal.style.display = 'none';
-    
-    appState.credits += 50;
-    this.saveGame();
-    this.updateGlobalUI();
-    
-    const sfx = document.getElementById('sfx-win');
-    if (sfx) {
-      sfx.currentTime = 0;
-      sfx.play().catch(()=>{});
-    }
+    // Ads removed for Basic Launch
+    alert('Ads coming soon!');
   },
   
   handleMatchStarted(data) {
