@@ -142,7 +142,8 @@
 
     </div>
 
-    <div class="aaa-profile-controls" style="margin-top: 20px;">
+    <div class="aaa-profile-controls" style="margin-top: 20px; display: flex; gap: 15px; align-items: center; justify-content: center;">
+      <button class="close-btn" style="font-size:1.2rem; padding: 12px 24px; font-weight: 900; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: #fff; cursor: pointer; transition: 0.2s; border-radius: 8px;" onclick="app.closeProfile()" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">BACK</button>
       <input type="text" id="profile-name-input" maxlength="15" placeholder="ENTER MAGE NAME">
       <button class="huge-play-btn" style="font-size:1.2rem; padding: 12px 24px;" onclick="app.saveProfile()">SAVE &
         EXIT</button>
