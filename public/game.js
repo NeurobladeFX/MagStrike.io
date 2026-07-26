@@ -150,6 +150,11 @@ function onLetterWrong() {
 const app = {
   init() {
     this.loadSave();
+    
+    // Initialize CrazyGames SDK
+    if (window.CrazyGames && window.CrazyGames.SDK) {
+      window.CrazyGames.SDK.game.init();
+    }
 
     // Autoplay music on first interaction
     const initMusic = () => {
@@ -326,6 +331,21 @@ const app = {
     document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
     document.getElementById(sceneId).classList.add('active');
     appState.scene = sceneId;
+    
+    // Request Banner ad in lobby
+    if (sceneId === 'lobby-screen' && window.CrazyGames && window.CrazyGames.SDK) {
+      try {
+        window.CrazyGames.SDK.banner.requestBanner({
+          id: 'crazygames-banner',
+          width: 728,
+          height: 90,
+        });
+      } catch (e) { console.error("Banner request error", e); }
+    } else if (window.CrazyGames && window.CrazyGames.SDK) {
+      try {
+        window.CrazyGames.SDK.banner.clearBanner('crazygames-banner');
+      } catch (e) { }
+    }
     
     // Manage lobby stickman rendering
     if (sceneId === 'lobby-screen') {
@@ -925,6 +945,48 @@ const app = {
   },
   
   showAd() {
+    const modal = document.getElementById('ad-modal');
+    
+    if (window.CrazyGames && window.CrazyGames.SDK) {
+      // Use official CrazyGames Rewarded Video
+      const callbacks = {
+        adStarted: () => {
+          if (modal) modal.style.display = 'flex';
+          const timerEl = document.getElementById('ad-timer');
+          const closeBtn = document.getElementById('ad-close-btn');
+          if (timerEl) {
+            timerEl.innerText = "ADVERTISEMENT PLAYING...";
+            timerEl.style.color = '#ff3355';
+          }
+          if (closeBtn) {
+            closeBtn.disabled = true;
+            closeBtn.style.opacity = '0.5';
+            closeBtn.style.cursor = 'not-allowed';
+          }
+        },
+        adFinished: () => {
+          this.finishAd();
+        },
+        adError: (error) => {
+          console.error('Ad Error', error);
+          if (modal) modal.style.display = 'none';
+          alert('Failed to load ad. Please try again later.');
+        }
+      };
+      
+      try {
+        window.CrazyGames.SDK.ad.requestAd('rewarded', callbacks);
+      } catch(e) {
+        console.error("SDK Ad Request Failed", e);
+        this.fallbackAd();
+      }
+    } else {
+      this.fallbackAd();
+    }
+  },
+  
+  fallbackAd() {
+    // Fallback Mock Ad Logic
     const modal = document.getElementById('ad-modal');
     const timerEl = document.getElementById('ad-timer');
     const closeBtn = document.getElementById('ad-close-btn');
