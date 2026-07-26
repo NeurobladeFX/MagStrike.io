@@ -237,16 +237,11 @@ io.on('connection', (socket) => {
     if (socket.roomId && rooms.has(socket.roomId)) {
       rooms.get(socket.roomId).handleClash(data);
     }
-  });
-
   socket.on('leaveRoom', () => {
     if (socket.roomId) {
       socket.leave(socket.roomId);
-      // Clean up the room if it still exists
       if (rooms.has(socket.roomId)) {
         rooms.delete(socket.roomId);
-        // Let the opponent know if they are still there
-        socket.to(socket.roomId).emit('roomError', 'OPPONENT LEFT');
       }
       socket.roomId = null;
     }
@@ -257,9 +252,7 @@ io.on('connection', (socket) => {
       matchmakingQueue = null;
     }
     if (socket.roomId && rooms.has(socket.roomId)) {
-      const gameRoom = rooms.get(socket.roomId);
       rooms.delete(socket.roomId);
-      io.to(socket.roomId).emit('roomError', 'OPPONENT DISCONNECTED');
     }
     console.log(`Player disconnected: ${socket.id}`);
   });
