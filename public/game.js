@@ -730,7 +730,8 @@ const app = {
         trophy: appState.trophyRank
       });
     } else {
-      setTimeout(() => app.handleMatchStarted({ roomId: 'local', playerNum: 1, enemyName: 'GANDALF_BOT', enemyHero: 'hero_gold', enemyArmband: 'outfit_handband_shadow' }), 1000);
+      alert("Multiplayer server is offline. Please try again later.");
+      this.changeScene('lobby-screen');
     }
   },
 
