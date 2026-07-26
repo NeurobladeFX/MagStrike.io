@@ -36,14 +36,14 @@ localStorage.setItem('magstrike_player_id', appState.playerId);
 
 // ─── LEADERBOARD DATA SYSTEM ──────────────────────────────────────────────────
 const DEFAULT_LEADERBOARD = [
-  { id: 'bot_1', name: "SHADOWMAGE", avatar: "hero_cat", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_2', name: "GANDALF_BLACK", avatar: "hero_dog", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_3', name: "SPELL_KNIGHT", avatar: "hero_bear", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_4', name: "VOID_CASTER", avatar: "hero_rabbit", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_5', name: "RUNEMASTER", avatar: "hero_fox", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_6', name: "NEO_WIZARD", avatar: "hero_panda", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_7', name: "NOOB_SPELLER", avatar: "hero_lion", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
-  { id: 'bot_8', name: "GUEST_007", avatar: "hero_pig", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false }
+  { id: 'bot_1', name: "SHADOWMAGE", avatar: "avatar_stickman_assassin", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_2', name: "GANDALF_BLACK", avatar: "avatar_stickman_elder", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_3', name: "SPELL_KNIGHT", avatar: "avatar_stickman_warrior", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_4', name: "VOID_CASTER", avatar: "avatar_stickman_mage", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_5', name: "RUNEMASTER", avatar: "avatar_stickman_rogue", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_6', name: "NEO_WIZARD", avatar: "avatar_stickman_youth", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_7', name: "NOOB_SPELLER", avatar: "avatar_stickman_assassin", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false },
+  { id: 'bot_8', name: "GUEST_007", avatar: "avatar_stickman_warrior", level: 0, wpm: 0, gold: 0, wins: 0, isPlayer: false }
 ];
 
 function getLeaderboardData() {
@@ -52,8 +52,8 @@ function getLeaderboardData() {
   if (raw) {
     try {
       let parsed = JSON.parse(raw);
-      // Keep only real network players (filter out cached bots)
-      list = parsed.filter(item => item.isPlayer && item.id !== 'local_player');
+      // Keep only real network players (filter out cached bots from server AND old local_player entries)
+      list = parsed.filter(item => (item.isPlayer || (item.id && !item.id.startsWith('bot_'))) && item.id !== 'local_player');
     } catch(e) { list = []; }
   }
   
@@ -62,26 +62,24 @@ function getLeaderboardData() {
   list.push(...bots);
 
   // Find or insert player entry
-  const playerIndex = list.findIndex(item => item.id === 'local_player');
-  const playerData = {
-    id: 'local_player',
-    name: appState.playerName || 'SPELLCASTER',
-    avatar: appState.avatar || 'hero_pig',
-    level: appState.level || 1,
-    wpm: appState.wpmRecord || 0,
-    gold: appState.credits || 0,
-    wins: appState.wins || 0,
-    losses: appState.losses || 0,
-    trophy: appState.trophyRank || 1,
-    isPlayer: true
-  };
-
-  if (playerIndex >= 0) {
-    playerData.wpm = Math.max(playerData.wpm, list[playerIndex].wpm || 0);
-    list[playerIndex] = playerData;
-  } else {
-    list.push(playerData);
+  let playerIndex = list.findIndex(item => item.playerId === appState.playerId);
+  if (playerIndex === -1) {
+    playerIndex = list.length;
+    list.push({});
   }
+
+  const playerData = list[playerIndex];
+  playerData.playerId = appState.playerId;
+  playerData.id = playerData.id || 'local_player';
+  playerData.name = appState.playerName || 'SPELLCASTER';
+  playerData.avatar = appState.avatar || 'avatar_stickman_assassin';
+  playerData.level = appState.level || 1;
+  playerData.wpm = Math.max(playerData.wpm || 0, appState.wpmRecord || 0);
+  playerData.gold = appState.credits || 0;
+  playerData.wins = appState.wins || 0;
+  playerData.losses = appState.losses || 0;
+  playerData.trophy = appState.trophyRank || 1;
+  playerData.isPlayer = true;
 
   // Sort descending by WPM initially (app.renderLeaderboard will re-sort based on active tab)
   list.sort((a, b) => (b.wpm || 0) - (a.wpm || 0));

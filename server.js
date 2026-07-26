@@ -33,14 +33,14 @@ async function syncToGoogleSheets() {
 
 // Global Live Server Leaderboard
 let globalLeaderboard = [
-  { id: 'bot_1', name: "SHADOWMAGE", avatar: "hero_pig", level: 42, wpm: 9450, gold: 28500 },
-  { id: 'bot_2', name: "GANDALF_BLACK", avatar: "hero_bear", level: 38, wpm: 8200, gold: 19400 },
-  { id: 'bot_3', name: "SPELL_KNIGHT", avatar: "hero_cat", level: 31, wpm: 7100, gold: 14200 },
-  { id: 'bot_4', name: "VOID_CASTER", avatar: "hero_frog", level: 27, wpm: 6350, gold: 11000 },
-  { id: 'bot_5', name: "RUNEMASTER", avatar: "hero_dog", level: 22, wpm: 5400, gold: 8900 },
-  { id: 'bot_6', name: "NEO_WIZARD", avatar: "hero_chicken", level: 18, wpm: 4600, gold: 6500 },
-  { id: 'bot_7', name: "NOOB_SPELLER", avatar: "avatar_1", level: 12, wpm: 3050, gold: 3200 },
-  { id: 'bot_8', name: "GUEST_007", avatar: "avatar_2", level: 5, wpm: 1200, gold: 800 }
+  { id: 'bot_1', name: "SHADOWMAGE", avatar: "avatar_stickman_assassin", level: 0, wpm: 0, gold: 0, wins: 0 },
+  { id: 'bot_2', name: "GANDALF_BLACK", avatar: "avatar_stickman_elder", level: 0, wpm: 0, gold: 0, wins: 0 },
+  { id: 'bot_3', name: "SPELL_KNIGHT", avatar: "avatar_stickman_warrior", level: 0, wpm: 0, gold: 0, wins: 0 },
+  { id: 'bot_4', name: "VOID_CASTER", avatar: "avatar_stickman_mage", level: 0, wpm: 0, gold: 0, wins: 0 },
+  { id: 'bot_5', name: "RUNEMASTER", avatar: "avatar_stickman_rogue", level: 0, wpm: 0, gold: 0, wins: 0 },
+  { id: 'bot_6', name: "NEO_WIZARD", avatar: "avatar_stickman_youth", level: 0, wpm: 0, gold: 0, wins: 0 },
+  { id: 'bot_7', name: "NOOB_SPELLER", avatar: "avatar_stickman_assassin", level: 0, wpm: 0, gold: 0, wins: 0 },
+  { id: 'bot_8', name: "GUEST_007", avatar: "avatar_stickman_warrior", level: 0, wpm: 0, gold: 0, wins: 0 }
 ];
 
 let seasonEndTime = Date.now() + 7 * 24 * 60 * 60 * 1000;
