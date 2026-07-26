@@ -78,18 +78,34 @@ function createPingPongVideo(src) {
 const ASSETS = { hatCache: {}, effectCache: {} };
 
 function getOutfitHat(id) {
-  if (!id) return null;
+  if (!id || id === 'none') return null;
   if (ASSETS.hatCache[id]) return ASSETS.hatCache[id];
   const img = new Image();
   if (id === 'outfit_mage') img.src = 'assets/mage_hat.png';
   else if (id === 'outfit_samurai') img.src = 'assets/samurai_hat.png';
+  else if (id === 'outfit_pirate') img.src = 'assets/pirate_hat.png';
+  else if (id === 'outfit_headband') img.src = 'assets/headband.PNG';
+  else if (id === 'outfit_handband_ninja') img.src = 'assets/ninja_armband.PNG';
+  else if (id === 'outfit_handband_mage') img.src = 'assets/handband_mage.png';
+  else if (id === 'outfit_handband_warrior') img.src = 'assets/handband_warrior.png';
+  else if (id === 'outfit_handband_shadow') img.src = 'assets/handband_shadow.png';
   ASSETS.hatCache[id] = img;
   return img;
 }
 
 function getEffectImg(id) {
-  if (!id) return null;
+  if (!id || id === 'none') return null;
   if (ASSETS.effectCache[id]) return ASSETS.effectCache[id];
+  if (id === 'effect_watcher_eye') {
+    const cornea = new Image(); cornea.src = 'assets/cornea.png';
+    const pupil = new Image(); pupil.src = 'assets/pupil.png';
+    const obj = { cornea, pupil, complete: false };
+    cornea.onload = () => { if (pupil.complete) obj.complete = true; };
+    pupil.onload = () => { if (cornea.complete) obj.complete = true; };
+    ASSETS.effectCache[id] = obj;
+    return obj;
+  }
+
   const img = new Image();
   if (id === 'effect_dragon') img.src = 'assets/dragon_aura.png';
   ASSETS.effectCache[id] = img;
@@ -309,6 +325,7 @@ class FogParticle {
     this.r = Math.random() * 15 + 10;
     this.vx = (Math.random() - 0.5) * 0.5;
     this.vy = -Math.random() * 1.5 - 0.5;
+    this.isBlue = Math.random() > 0.5;
   }
   update() {
     this.x += this.vx; this.y += this.vy;
@@ -318,8 +335,8 @@ class FogParticle {
   draw(ctx) {
     ctx.save();
     ctx.globalAlpha = Math.max(0, this.life * 0.4);
-    ctx.fillStyle = '#111111';
-    ctx.shadowColor = '#000000';
+    ctx.fillStyle = '#0f172a';
+    ctx.shadowColor = '#1e3a8a';
     ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
@@ -366,6 +383,10 @@ class Stickman {
     this.health = 100;
     this._attacking = false;
 
+    // Enemy tracking coords for dynamic effects (like Watcher Eye)
+    this.enemyX = null;
+    this.enemyY = null;
+
     // Alternating Hand State: 'RIGHT' -> 'LEFT' -> 'RIGHT'
     this.activeHand = 'RIGHT';
   }
@@ -407,7 +428,6 @@ class Stickman {
     // Phase 2: Forward Spell Thrust
     setTimeout(() => {
       if (this.health <= 0) return;
-      this._flashTimer = 0.18; // brighter flash
       this._go(strikePose, 60);
       this._shakePow = 0.65; // harder camera shake
 
@@ -438,7 +458,6 @@ class Stickman {
 
   recoil() {
     if (this.health <= 0) return;
-    this._flashTimer = 0.18;
     this._shakePow = 0.25;
     this._go('DashRetreat', 18);
     setTimeout(() => { if (this.health > 0) this._go('IdleStance', 5); }, 220);
@@ -595,6 +614,45 @@ class Stickman {
       }
     }
 
+    // ── WATCHER EYE EFFECT ──────────────────────────────────────────────────
+    if (this.effect === 'effect_watcher_eye' && this.effectImg && this.effectImg.complete) {
+      ctx.save();
+      // Draw floating eye above head
+      ctx.translate(J.head.x, headY - 100);
+
+      // Draw the generated Cornea image base
+      ctx.globalCompositeOperation = 'screen';
+      ctx.drawImage(this.effectImg.cornea, -45, -45, 90, 90);
+
+      // Calculate dynamic pupil tracking angle
+      // If enemy tracking is available, point to them. Otherwise, point forward.
+      const targetX = this.enemyX !== null ? this.enemyX : this.rootX + (200 * this.facing);
+      const targetY = this.enemyY !== null ? this.enemyY : this.groundY - 120;
+
+      // Calculate world position of the eye to get accurate tracking angle
+      const worldEyeX = this.rootX + (J.root.x + J.head.x) * this.facing;
+      const worldEyeY = this.groundY + J.root.y + headY - 100;
+
+      const dx = targetX - worldEyeX;
+      const dy = targetY - worldEyeY;
+      const angle = Math.atan2(dy, dx);
+
+      // The pupil moves within a small radius inside the cornea
+      // EDIT THIS: Change `pupilRadius` to control how far the pupil moves from the center
+      const pupilRadius = 4;
+      const px = Math.cos(angle) * pupilRadius;
+      const py = Math.sin(angle) * pupilRadius;
+
+      ctx.translate(px * this.facing, py);
+
+      // Draw the Pupil Image
+      // EDIT THIS: Change the size and offset of the pupil here
+      // Format: ctx.drawImage(image, xOffset, yOffset, width, height)
+      ctx.drawImage(this.effectImg.pupil, -20, -20, 38, 38);
+
+      ctx.restore();
+    }
+
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.lineWidth = 14;
@@ -651,6 +709,9 @@ class Stickman {
       ctx.save();
       ctx.translate(J.head.x, headY);
 
+      // Flash hat pure white when hit
+      if (fl) ctx.filter = "brightness(0) invert(1)";
+
       // Calculate rotation based on neck to head vector
       const dx = J.head.x - J.neck.x;
       const dy = headY - neckY;
@@ -661,14 +722,65 @@ class Stickman {
         ctx.drawImage(this.outfitImg, -60, -78, 100, 90);
       } else if (this.outfit === 'outfit_samurai') {
         ctx.save();
-        ctx.scale(-this.facing, 1);
-        // You can tweak these 4 numbers: X, Y, Width, Height
+        ctx.scale(-1, 1);
         ctx.drawImage(this.outfitImg, -35, -25, 70, 32);
         ctx.restore();
+      } else if (this.outfit === 'outfit_pirate') {
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(this.outfitImg, -35, -30, 70, 42);
+        ctx.restore();
+      } else if (this.outfit === 'outfit_headband') {
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(this.outfitImg, -44, -50, 100, 60);
+        ctx.restore();
       }
-
       ctx.restore();
     }
+
+    // ── ARMBANDS (BOTH WRISTS) ───────────────────────────────────────────────
+    if (this.armbandImg && this.armbandImg.complete && this.armbandImg.naturalWidth > 0) {
+      // Draw on Right Wrist (Front)
+      ctx.save();
+      ctx.translate(J.wristR.x, wristRy);
+      let armAngleR = Math.atan2(wristRy - elbowRy, J.wristR.x - J.elbowR.x);
+      ctx.rotate(armAngleR);
+      ctx.globalCompositeOperation = 'source-over';
+
+      // Flash armband pure white when hit
+      if (fl) ctx.filter = "brightness(0) invert(1)";
+
+      if (this.armband === 'outfit_handband_ninja') {
+        ctx.rotate(-45 * Math.PI / 180);
+        ctx.drawImage(this.armbandImg, -40, -40, 55, 55);
+      } else if (this.armband) {
+        ctx.rotate(-45 * Math.PI / 180);
+        ctx.drawImage(this.armbandImg, -40, -40, 55, 55);
+      }
+      ctx.restore();
+
+      // Draw on Left Wrist (Back)
+      ctx.save();
+      ctx.translate(J.wristL.x, wristLy);
+      let armAngleL = Math.atan2(wristLy - elbowLy, J.wristL.x - J.elbowL.x);
+      ctx.rotate(armAngleL);
+      ctx.globalCompositeOperation = 'source-over';
+
+      // Flash armband pure white when hit
+      if (fl) ctx.filter = "brightness(0) invert(1)";
+
+      if (this.armband === 'outfit_handband_ninja') {
+        ctx.rotate(-45 * Math.PI / 180);
+        ctx.drawImage(this.armbandImg, -40, -40, 55, 55);
+      } else if (this.armband) {
+        ctx.rotate(-45 * Math.PI / 180);
+        ctx.drawImage(this.armbandImg, -40, -40, 55, 55);
+      }
+      ctx.restore();
+    }
+
+
 
     // ── MAGE HAND LIGHT VFX ─────────────────────────────────────────────────
     // Pulsing glowing elemental light on both right and left hands/wrists!
@@ -725,6 +837,9 @@ class Stickman {
 
 // ─── LETTER CONVEYOR BELT ─────────────────────────────────────────────────────
 
+const LEFT_HAND = ['A', 'S', 'D', 'F', 'Q', 'W', 'E', 'R', 'T', 'V', 'C', 'X', 'Z'];
+const RIGHT_HAND = ['Y', 'U', 'I', 'O', 'P', 'H', 'J', 'K', 'L', 'N', 'M'];
+
 class LetterBelt {
   /**
    * Manages the 6-tile DOM conveyor belt in <div id="letter-belt">.
@@ -737,6 +852,7 @@ class LetterBelt {
     this._onCB = onCorrect;
     this._offCB = onWrong;
     this._handler = this._onKey.bind(this);
+    this._nextHand = 'LEFT';
   }
 
   start() {
@@ -754,7 +870,9 @@ class LetterBelt {
   }
 
   _randLetter() {
-    return LETTER_POOL[RI(0, LETTER_POOL.length - 1)];
+    let pool = this._nextHand === 'LEFT' ? LEFT_HAND : RIGHT_HAND;
+    this._nextHand = this._nextHand === 'LEFT' ? 'RIGHT' : 'LEFT';
+    return pool[RI(0, pool.length - 1)];
   }
 
   _push() {
@@ -830,9 +948,11 @@ class DualCombatScene {
     // GROUND_Y baseline
     this.GROUND_Y = H * 0.76;
 
-    // Load background image assets/background.jpg
+    // Load a random background image for the arena
+    const backgrounds = ['assets/background.jpg', 'assets/background2.jpg'];
+    const randomBg = backgrounds[Math.floor(Math.random() * backgrounds.length)];
     this.bgImage = new Image();
-    this.bgImage.src = 'assets/background.jpg';
+    this.bgImage.src = randomBg;
 
     // Load VFX video with ping-pong loop
     this.handVfxImage = createPingPongVideo('assets/hand-vfx.webm');
@@ -859,16 +979,20 @@ class DualCombatScene {
     this.hitStop = 0; // Added for hit freeze frame effect
   }
 
-  setConfig(p1Outfit, p1Effect, p2Outfit, p2Effect) {
+  setConfig(p1Outfit, p1Effect, p1Armband, p2Outfit, p2Effect, p2Armband) {
     this.p1.outfit = p1Outfit;
     this.p1.effect = p1Effect;
+    this.p1.armband = p1Armband;
     this.p1.outfitImg = getOutfitHat(p1Outfit);
     this.p1.effectImg = getEffectImg(p1Effect);
+    this.p1.armbandImg = getOutfitHat(p1Armband);
 
     this.p2.outfit = p2Outfit;
     this.p2.effect = p2Effect;
+    this.p2.armband = p2Armband;
     this.p2.outfitImg = getOutfitHat(p2Outfit);
     this.p2.effectImg = getEffectImg(p2Effect);
+    this.p2.armbandImg = getOutfitHat(p2Armband);
   }
 
   start() {
@@ -883,27 +1007,6 @@ class DualCombatScene {
     this.running = false;
     this._belt.stop();
     if (this._raf) cancelAnimationFrame(this._raf);
-  }
-
-  setConfig(p1Outfit, p1Effect, p2Outfit, p2Effect) {
-    this.p1.outfit = p1Outfit;
-    this.p1.effect = p1Effect;
-    this.p1.outfitImg = this._loadImage(p1Outfit);
-    this.p1.effectImg = this._loadImage(p1Effect);
-
-    this.p2.outfit = p2Outfit;
-    this.p2.effect = p2Effect;
-    this.p2.outfitImg = this._loadImage(p2Outfit);
-    this.p2.effectImg = this._loadImage(p2Effect);
-  }
-
-  _loadImage(id) {
-    if (!id) return null;
-    const img = new Image();
-    if (id === 'outfit_mage') img.src = 'assets/mage_hat.png';
-    else if (id === 'outfit_samurai') img.src = 'assets/samurai_hat.png';
-    else if (id === 'effect_dragon') img.src = 'assets/dragon_aura.png';
-    return img;
   }
 
   _onCorrect(letter) {
@@ -996,6 +1099,12 @@ class DualCombatScene {
 
     this.p1.update(dt);
     this.p2.update(dt);
+
+    // Update enemy tracking coordinates for dynamic effects!
+    this.p1.enemyX = this.p2._worldJ('head').x;
+    this.p1.enemyY = this.p2._worldJ('head').y;
+    this.p2.enemyX = this.p1._worldJ('head').x;
+    this.p2.enemyY = this.p1._worldJ('head').y;
 
     // Collision detection between projectiles
     for (let i = 0; i < this.projectiles.length; i++) {
@@ -1115,11 +1224,13 @@ class LobbyStickmanScene {
     this.stickman.activeHand = 'RIGHT';
   }
 
-  setConfig(outfit, effect) {
+  setConfig(outfit, effect, armband) {
     this.stickman.outfit = outfit;
     this.stickman.effect = effect;
+    this.stickman.armband = armband;
     this.stickman.outfitImg = getOutfitHat(outfit);
     this.stickman.effectImg = getEffectImg(effect);
+    this.stickman.armbandImg = getOutfitHat(armband);
   }
 
   start() {

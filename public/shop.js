@@ -1,18 +1,29 @@
 const SHOP_DATA = {
   outfits: [
+    { id: 'none', name: 'NONE', price: 0, img: null },
     { id: 'outfit_mage', name: 'Mage Hat', price: 200, img: 'assets/mage_hat.png' },
-    { id: 'outfit_samurai', name: 'Samurai Hat', price: 500, img: 'assets/samurai_hat.png' }
+    { id: 'outfit_samurai', name: 'Samurai Hat', price: 500, img: 'assets/samurai_hat.png' },
+    { id: 'outfit_pirate', name: 'Pirate Hat', price: 600, img: 'assets/pirate_hat.png' },
+    { id: 'outfit_headband', name: 'Ninja Headband', price: 300, img: 'assets/headband.PNG' }
+  ],
+  armbands: [
+    { id: 'none', name: 'NONE', price: 0, img: null },
+    { id: 'outfit_handband_shadow', name: 'Shadow Band', price: 1000, img: 'assets/handband_shadow.png' },
+    { id: 'outfit_handband_ninja', name: 'Ninja Band', price: 500, img: 'assets/ninja_armband.PNG' }
   ],
   effects: [
+    { id: 'none', name: 'NONE', price: 0, img: null },
     { id: 'effect_shadow', name: 'Shadow Fog', price: 1000, img: 'assets/ninja_eye1.png' },
-    { id: 'effect_dragon', name: 'Dragon Aura', price: 2000, img: 'assets/dragon_aura.png' }
+    { id: 'effect_dragon', name: 'Dragon Aura', price: 2000, img: 'assets/dragon_aura.png' },
+    { id: 'effect_watcher_eye', name: 'Watcher Eye', price: 2000, img: 'assets/watcher_eye.png' }
   ]
 };
 
 const shop = {
   currentTab: 'outfits',
-  ownedOutfits: ['outfit_mage'],
-  ownedEffects: [],
+  ownedOutfits: ['outfit_mage', 'none'],
+  ownedEffects: ['none'],
+  ownedArmbands: ['none'],
   
   init() {
     this.loadShopSave();
@@ -23,8 +34,9 @@ const shop = {
     if (data) {
       try {
         const parsed = JSON.parse(data);
-        this.ownedOutfits = parsed.ownedOutfits || ['outfit_mage'];
-        this.ownedEffects = parsed.ownedEffects || [];
+        this.ownedOutfits = parsed.ownedOutfits || ['outfit_mage', 'none'];
+        this.ownedEffects = parsed.ownedEffects || ['none'];
+        this.ownedArmbands = parsed.ownedArmbands || ['none'];
       } catch (e) { console.error('Shop save corrupt'); }
     }
   },
@@ -32,7 +44,8 @@ const shop = {
   saveShop() {
     localStorage.setItem('typing_battle_shop', JSON.stringify({
       ownedOutfits: this.ownedOutfits,
-      ownedEffects: this.ownedEffects
+      ownedEffects: this.ownedEffects,
+      ownedArmbands: this.ownedArmbands
     }));
   },
   
@@ -57,18 +70,34 @@ const shop = {
       const div = document.createElement('div');
       div.className = 'shop-item';
       
-      let isOwned = this.currentTab === 'outfits' ? this.ownedOutfits.includes(item.id) : this.ownedEffects.includes(item.id);
-      let isEquipped = (appState.outfit === item.id) || (appState.effect === item.id);
+      let isOwned = false;
+      let isEquipped = false;
+      let action = '';
+      
+      if (this.currentTab === 'outfits') {
+        isOwned = this.ownedOutfits.includes(item.id);
+        isEquipped = (appState.outfit === item.id) || (item.id === 'none' && !appState.outfit);
+        action = `shop.equipOutfit('${item.id}')`;
+      } else if (this.currentTab === 'armbands') {
+        isOwned = this.ownedArmbands.includes(item.id);
+        isEquipped = (appState.armband === item.id) || (item.id === 'none' && !appState.armband);
+        action = `shop.equipArmband('${item.id}')`;
+      } else {
+        isOwned = this.ownedEffects.includes(item.id);
+        isEquipped = (appState.effect === item.id) || (item.id === 'none' && !appState.effect);
+        action = `shop.equipEffect('${item.id}')`;
+      }
       
       let btnHtml = '';
       if (isEquipped) {
         btnHtml = `<button class="cancel-btn" disabled>EQUIPPED</button>`;
       } else if (isOwned) {
-        let action = this.currentTab === 'outfits' ? `shop.equipOutfit('${item.id}')` : `shop.equipEffect('${item.id}')`;
         btnHtml = `<button class="cancel-btn" style="color: #fff; border-color: #fff;" onclick="${action}">EQUIP</button>`;
       } else {
-        let action = this.currentTab === 'outfits' ? `shop.buyOutfit('${item.id}', ${item.price})` : `shop.buyEffect('${item.id}', ${item.price})`;
-        btnHtml = `<button class="cancel-btn" style="color: #ffd700; border-color: #ffd700;" onclick="${action}">BUY <img src="assets/coin.png" style="width:16px; height:16px; vertical-align:middle; margin-left:4px;"> ${item.price}</button>`;
+        let buyAction = this.currentTab === 'outfits' ? `shop.buyOutfit('${item.id}', ${item.price})` :
+                        this.currentTab === 'armbands' ? `shop.buyArmband('${item.id}', ${item.price})` :
+                        `shop.buyEffect('${item.id}', ${item.price})`;
+        btnHtml = `<button class="cancel-btn" style="color: #ffd700; border-color: #ffd700;" onclick="${buyAction}">BUY <img src="assets/coin.png" style="width:16px; height:16px; vertical-align:middle; margin-left:4px;"> ${app.formatGold(item.price)}</button>`;
       }
       
       let visualHtml = '';
@@ -81,7 +110,7 @@ const shop = {
       div.innerHTML = `
         ${visualHtml}
         <h3>${item.name}</h3>
-        <p style="margin: 10px 0; color: var(--text-muted);">${isOwned ? 'OWNED' : item.price + ' GOLD'}</p>
+        <p style="margin: 10px 0; color: var(--text-muted);">${isOwned ? 'OWNED' : app.formatGold(item.price) + ' GOLD'}</p>
         ${btnHtml}
       `;
       
@@ -114,17 +143,36 @@ const shop = {
   },
   
   equipOutfit(id) {
-    appState.outfit = id;
+    appState.outfit = id === 'none' ? null : id;
+    app.saveGame();
+    this.render();
+    this.syncToBackend();
+  },
+
+  equipArmband(id) {
+    appState.armband = id === 'none' ? null : id;
     app.saveGame();
     this.render();
     this.syncToBackend();
   },
 
   equipEffect(id) {
-    appState.effect = id;
+    appState.effect = id === 'none' ? null : id;
     app.saveGame();
     this.render();
     this.syncToBackend();
+  },
+  
+  buyArmband(id, price) {
+    if (appState.credits >= price) {
+      appState.credits -= price;
+      this.ownedArmbands.push(id);
+      app.saveGame();
+      this.saveShop();
+      this.render();
+    } else {
+      alert("NOT ENOUGH GOLD!");
+    }
   },
   
   syncToBackend() {

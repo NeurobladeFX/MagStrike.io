@@ -246,7 +246,7 @@ button { cursor: pointer; font-family: var(--font); }
   z-index: 100;
 }
 #shop-panel { width: min(860px, 88vw); max-height: 82vh; }
-#settings-panel { width: min(400px, 88vw); max-height: 82vh; }
+#settings-panel { width: min(400px, 88vw); min-height: 400px; max-height: 82vh; }
 #friend-panel { width: min(420px, 88vw); max-height: 82vh; }
 
 #shop-panel.active, #settings-panel.active, #friend-panel.active {
