@@ -148,12 +148,17 @@ function onLetterWrong() {
 
 // --- App Flow / Scene Management ---
 const app = {
-  init() {
+  async init() {
     this.loadSave();
     
     // Initialize CrazyGames SDK
     if (window.CrazyGames && window.CrazyGames.SDK) {
-      window.CrazyGames.SDK.game.init();
+      try {
+        await window.CrazyGames.SDK.init();
+        console.log("CrazyGames SDK initialized");
+      } catch (e) {
+        console.error("CrazyGames SDK init failed", e);
+      }
     }
 
     // Autoplay music on first interaction
