@@ -642,22 +642,15 @@ class Stickman {
       const dy = targetY - worldEyeY;
       const angle = Math.atan2(dy, dx);
 
-      // The pupil tracks the opponent slightly inside the cornea
-      // I have reduced the tracking radius from 12 to 5 so it stays much closer to the center!
-      const pupilRadius = 5;
-      const px = Math.cos(angle) * pupilRadius;
-      const py = Math.sin(angle) * pupilRadius;
-
-      ctx.translate(px * this.facing, py);
-
+      // Tracking is disabled to keep the pupil locked dead-center in the cornea
+      
       // Pupil rotation
       const pupilRotation = (time / 1000) * 0.5;
       ctx.rotate(pupilRotation);
 
-      // The pupil MUST be drawn exactly at -width/2, -height/2 to rotate perfectly around its own center.
-      // -40, -40 ensures it spins flawlessly on its axis without orbiting!
-      const pSize = 80;
-      ctx.drawImage(this.effectImg.pupil, -40, -40, pSize, pSize);
+      // Scaled down the pupil to fit perfectly inside the cornea's eyelids
+      const pSize = 50;
+      ctx.drawImage(this.effectImg.pupil, -25, -25, pSize, pSize);
 
       ctx.restore();
     }
