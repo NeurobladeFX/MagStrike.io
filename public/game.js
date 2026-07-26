@@ -260,12 +260,34 @@ const app = {
     const pWpm = document.getElementById('profile-stat-wpm');
     if (pWpm) pWpm.innerText = appState.wpmRecord + ' HPS';
     
+    // Update XP Bar Logic (Level up every 2 wins)
+    const levelBar = document.getElementById('profile-level-bar');
+    const levelText = document.getElementById('profile-level-text');
+    if (levelBar && levelText) {
+      const isLevelUpNext = (appState.wins % 2) === 1;
+      const progressPercent = isLevelUpNext ? 50 : 0;
+      const currentXP = isLevelUpNext ? 50 : 0;
+      
+      levelBar.style.width = `${progressPercent}%`;
+      levelText.innerText = `${currentXP} / 100 XP`;
+    }
+    
     // Trophy
     const tRank = Math.min(Math.max(appState.trophyRank, 1), 7);
     const pTrophyImg = document.getElementById('profile-trophy-img');
     if (pTrophyImg) pTrophyImg.src = `assets/trophy_${tRank}.png`;
     const pTrophyName = document.getElementById('profile-trophy-name');
     if (pTrophyName) pTrophyName.innerText = this.getTrophyName(tRank);
+    const pTrophyProgress = document.getElementById('profile-trophy-progress');
+    if (pTrophyProgress) {
+      if (tRank >= 7) {
+        pTrophyProgress.innerText = "MAX RANK ACHIEVED";
+        pTrophyProgress.style.color = "#ffcc00";
+      } else {
+        pTrophyProgress.innerText = "1 WIN TO NEXT RANK";
+        pTrophyProgress.style.color = "#aaa";
+      }
+    }
 
     if (window.lobbyGraphics) {
       window.lobbyGraphics.setConfig(appState.outfit, appState.effect, appState.armband);
