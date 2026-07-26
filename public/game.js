@@ -1123,6 +1123,11 @@ if (socket) {
     }
   });
 
+  socket.on('connect', () => {
+    console.log("Connected to server! Submitting score...");
+    app.saveGame();
+  });
+
   socket.on('leaderboardData', (data) => {
     let list = [];
     if (Array.isArray(data)) {
