@@ -457,7 +457,6 @@ const app = {
   },
 
   renderLeaderboard() {
-  renderLeaderboard() {
     let list = getLeaderboardData();
     
     if (this.currentLeaderboardSort === 'level') {
