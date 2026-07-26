@@ -1,4 +1,4 @@
-const socket = typeof io !== 'undefined' ? io() : null;
+const socket = typeof io !== 'undefined' ? io('https://magstrike-io.onrender.com') : null;
 
 // --- State ---
 const MAX_HEALTH = 100;
@@ -342,8 +342,8 @@ const app = {
       try {
         window.CrazyGames.SDK.banner.requestBanner({
           id: 'crazygames-banner',
-          width: 728,
-          height: 90,
+          width: 468,
+          height: 60,
         });
       } catch (e) { console.error("Banner request error", e); }
     } else if (window.CrazyGames && window.CrazyGames.SDK) {
