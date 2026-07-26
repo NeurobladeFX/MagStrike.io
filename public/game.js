@@ -723,17 +723,12 @@ const app = {
 
     // Start the high-performance combat renderer (LetterBelt starts inside)
     if (graphics) {
-      if (appState.match.isPlayer1) {
-        graphics.setConfig(
-          appState.outfit, appState.effect, appState.armband,
-          appState.match.enemyOutfit, appState.match.enemyEffect, appState.match.enemyArmband
-        );
-      } else {
-        graphics.setConfig(
-          appState.match.enemyOutfit, appState.match.enemyEffect, appState.match.enemyArmband,
-          appState.outfit, appState.effect, appState.armband
-        );
-      }
+      // p1 in SwordCombatEngine is ALWAYS the local player (left), and p2 is ALWAYS the enemy (right).
+      // We must not swap them based on server playerNum, otherwise items get put on the wrong stickman!
+      graphics.setConfig(
+        appState.outfit, appState.effect, appState.armband,
+        appState.match.enemyOutfit, appState.match.enemyEffect, appState.match.enemyArmband
+      );
       graphics.start();
     }
   },
