@@ -16,8 +16,21 @@
 
 <body>
 
+  <!-- ─── SPLASH SCREEN ───────────────────────────────────────── -->
+  <div id="splash-screen" class="scene active" style="display:flex; justify-content:center; align-items:center; background:#050505;">
+    <h1 style="color: #fff; font-family: 'Outfit', sans-serif; font-size: 2.5rem; letter-spacing: 6px; text-transform: uppercase; animation: fadeInOut 2s ease-in-out forwards; text-shadow: 0 0 20px rgba(255,255,255,0.5);">NeuroGames Presents</h1>
+    <style>
+      @keyframes fadeInOut {
+        0% { opacity: 0; transform: scale(0.95); }
+        20% { opacity: 1; transform: scale(1); }
+        80% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(1.05); }
+      }
+    </style>
+  </div>
+
   <!-- ─── LOADING SCREEN ──────────────────────────────────────── -->
-  <div id="loading-screen" class="scene active">
+  <div id="loading-screen" class="scene">
     <div class="loader-content">
       <img src="assets/logo.png" alt="MagStrike" class="main-logo" style="width: 280px; margin-bottom: 20px;">
       <p class="loader-sub">INITIALISING MAGE SPELL ENGINE...</p>

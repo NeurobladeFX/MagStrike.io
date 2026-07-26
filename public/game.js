@@ -169,17 +169,20 @@ const app = {
       this.handleKeyPress(e.key.toUpperCase());
     });
 
-    // Animated loading bar then transition to lobby
-    let prog = 0;
-    const bar = document.getElementById('progress-bar');
-    const tick = setInterval(() => {
-      prog = Math.min(prog + Math.random() * 18, 100);
-      if (bar) bar.style.width = prog + '%';
-      if (prog >= 100) {
-        clearInterval(tick);
-        setTimeout(() => this.changeScene('lobby-screen'), 300);
-      }
-    }, 80);
+    // Show splash screen, then loading bar, then transition to lobby
+    setTimeout(() => {
+      this.changeScene('loading-screen');
+      let prog = 0;
+      const bar = document.getElementById('progress-bar');
+      const tick = setInterval(() => {
+        prog = Math.min(prog + Math.random() * 18, 100);
+        if (bar) bar.style.width = prog + '%';
+        if (prog >= 100) {
+          clearInterval(tick);
+          setTimeout(() => this.changeScene('lobby-screen'), 300);
+        }
+      }, 80);
+    }, 2000);
 
     // Tick loop for match HUD
     setInterval(this.matchTick.bind(this), 500);
