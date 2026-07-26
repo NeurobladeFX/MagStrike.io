@@ -15,6 +15,8 @@ const appState = {
   wpmRecord: 0,
   wins: 0,
   losses: 0,
+  xp: 0,
+  trophyPoints: 0,
   trophyRank: 1,
   match: {
     inMatch: false,
@@ -174,6 +176,8 @@ const app = {
         appState.wpmRecord = parsed.wpmRecord || 0;
         appState.wins = parsed.wins || 0;
         appState.losses = parsed.losses || 0;
+        appState.xp = parsed.xp || 0;
+        appState.trophyPoints = parsed.trophyPoints || 0;
         appState.trophyRank = parsed.trophyRank || 1;
         appState.avatar = parsed.avatar || 'avatar_stickman_assassin';
         appState.outfit = parsed.outfit || null;
@@ -192,6 +196,8 @@ const app = {
       wpmRecord: appState.wpmRecord,
       wins: appState.wins,
       losses: appState.losses,
+      xp: appState.xp,
+      trophyPoints: appState.trophyPoints,
       trophyRank: appState.trophyRank,
       avatar: appState.avatar,
       outfit: appState.outfit,
@@ -260,16 +266,15 @@ const app = {
     const pWpm = document.getElementById('profile-stat-wpm');
     if (pWpm) pWpm.innerText = appState.wpmRecord + ' HPS';
     
-    // Update XP Bar Logic (Level up every 2 wins)
+    // Update XP Bar Logic
     const levelBar = document.getElementById('profile-level-bar');
     const levelText = document.getElementById('profile-level-text');
     if (levelBar && levelText) {
-      const isLevelUpNext = (appState.wins % 2) === 1;
-      const progressPercent = isLevelUpNext ? 50 : 0;
-      const currentXP = isLevelUpNext ? 50 : 0;
+      const requiredXP = appState.level + 1;
+      const progressPercent = Math.min(100, (appState.xp / requiredXP) * 100);
       
       levelBar.style.width = `${progressPercent}%`;
-      levelText.innerText = `${currentXP} / 100 XP`;
+      levelText.innerText = `${appState.xp} / ${requiredXP} XP`;
     }
     
     // Trophy
@@ -284,7 +289,8 @@ const app = {
         pTrophyProgress.innerText = "MAX RANK ACHIEVED";
         pTrophyProgress.style.color = "#ffcc00";
       } else {
-        pTrophyProgress.innerText = "1 WIN TO NEXT RANK";
+        const requiredTrophy = tRank + 2;
+        pTrophyProgress.innerText = `${appState.trophyPoints} / ${requiredTrophy} PTS TO NEXT RANK`;
         pTrophyProgress.style.color = "#aaa";
       }
     }
@@ -775,20 +781,48 @@ const app = {
 
     if (isWinner) {
       appState.wins++;
-      appState.trophyRank = Math.min(appState.trophyRank + 1, 7);
       
-      // Calculate level up logic (1 win = 10xp, need level*50 xp to level up)
-      // Since it's a simple level up, we can say every 2 wins is a level up
-      if (appState.level < 50 && appState.wins % 2 === 0) {
-        appState.level++;
-        setTimeout(() => {
-          document.getElementById('level-up-screen').classList.add('active');
-          document.getElementById('level-up-number').innerText = appState.level;
-        }, 1000); // show it after game over screen is shown
+      // Level progression (XP)
+      if (appState.level < 50) {
+        appState.xp += 1;
+        const requiredXP = appState.level + 1;
+        if (appState.xp >= requiredXP) {
+          appState.xp = 0;
+          appState.level++;
+          setTimeout(() => {
+            document.getElementById('level-up-screen').classList.add('active');
+            document.getElementById('level-up-number').innerText = appState.level;
+          }, 1000);
+        }
       }
+      
+      // Trophy progression
+      if (appState.trophyRank < 7) {
+        appState.trophyPoints += 1;
+        const requiredTrophy = appState.trophyRank + 2;
+        if (appState.trophyPoints >= requiredTrophy) {
+          appState.trophyPoints = 0;
+          appState.trophyRank++;
+        }
+      } else {
+        appState.trophyPoints = 0; // Max rank reached
+      }
+      
     } else {
       appState.losses++;
-      appState.trophyRank = Math.max(appState.trophyRank - 1, 1);
+      
+      // Trophy loss penalty (-0.5 points)
+      appState.trophyPoints -= 0.5;
+      
+      // Handle deranking
+      if (appState.trophyPoints < 0) {
+        if (appState.trophyRank > 1) {
+          appState.trophyRank--;
+          appState.trophyPoints = (appState.trophyRank + 2) - 0.5; // Place near top of previous rank
+        } else {
+          appState.trophyPoints = 0; // Cannot derank below 1
+        }
+      }
     }
 
     appState.credits += creditsEarned;
