@@ -484,14 +484,7 @@
   <audio id="sfx-win" src="assets/sfx_win.mp3"></audio>
   <audio id="sfx-lose" src="assets/sfx_lose.mp3"></audio>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    if (typeof io === 'undefined') {
-      var s = document.createElement('script');
-      s.src = 'https://cdn.socket.io/4.8.1/socket.io.min.js';
-      document.head.appendChild(s);
-    }
-  </script>
+  <script src="socket.io.min.js"></script>
   <script src="SwordCombatEngine.js?v=4"></script>
   <script src="shop.js?v=4"></script>
   <script src="game.js?v=4"></script>
