@@ -594,7 +594,7 @@ const app = {
             </div>
             <div class="lb-col-level">Lvl. ${item.level || 1}</div>
             <div class="lb-col-wpm">${item.wpm || 0} WPM</div>
-            <div class="lb-col-gold">🟡 ${app.formatGold(item.gold || 0)}</div>
+            <div class="lb-col-gold"><img src="assets/coin.png" style="width:14px; height:14px; vertical-align:middle; margin-right:3px;"> ${app.formatGold(item.gold || 0)}</div>
           </div>
         `;
       }).join('');
