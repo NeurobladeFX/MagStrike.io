@@ -653,8 +653,13 @@ class Stickman {
       const pupilRotation = (time / 1000) * 0.5;
       ctx.rotate(pupilRotation);
 
-      // Draw the Pupil Image (scaled appropriately to fit inside the larger cornea)
-      ctx.drawImage(this.effectImg.pupil, -52, -40, 80, 80);
+      // The pupil.png image has transparent padding causing its visual center to be off-center.
+      // We calculate the exact origin offset ratios (52/60 and 50/60) to spin it perfectly!
+      const pSize = 80;
+      const ox = -(pSize * (52 / 60)); // X origin offset
+      const oy = -(pSize * (50 / 60)); // Y origin offset
+
+      ctx.drawImage(this.effectImg.pupil, ox, oy, pSize, pSize);
 
       ctx.restore();
     }
