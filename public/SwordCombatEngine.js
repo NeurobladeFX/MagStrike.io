@@ -631,8 +631,10 @@ class Stickman {
       ctx.translate(J.head.x, headY - 100);
       ctx.scale(1, blinkScale);
 
-      // Draw the generated Cornea image base (made significantly larger)
-      ctx.globalCompositeOperation = 'screen';
+      // Draw the generated Cornea image base (solid, with a red glow instead of transparency)
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.shadowColor = 'rgba(255, 51, 51, 0.8)';
+      ctx.shadowBlur = 25;
       ctx.drawImage(this.effectImg.cornea, -70, -70, 140, 140);
 
       const targetX = this.enemyX !== null ? this.enemyX : this.rootX + (200 * this.facing);
