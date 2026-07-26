@@ -617,10 +617,10 @@ class Stickman {
     // ── WATCHER EYE EFFECT ──────────────────────────────────────────────────
     if (this.effect === 'effect_watcher_eye' && this.effectImg && this.effectImg.complete) {
       ctx.save();
-      
+
       const worldEyeX = this.rootX + (J.root.x + J.head.x) * this.facing;
       const worldEyeY = this.groundY + J.root.y + headY - 100;
-      
+
       const time = performance.now();
       const blinkCycle = time % 4000;
       let blinkScale = 1;
@@ -648,13 +648,13 @@ class Stickman {
       const py = Math.sin(angle) * pupilRadius;
 
       ctx.translate(px * this.facing, py);
-      
+
       // Pupil rotation
       const pupilRotation = (time / 1000) * 0.5;
       ctx.rotate(pupilRotation);
 
       // Draw the Pupil Image (scaled appropriately to fit inside the larger cornea)
-      ctx.drawImage(this.effectImg.pupil, -40, -40, 80, 80);
+      ctx.drawImage(this.effectImg.pupil, -52, -40, 80, 80);
 
       ctx.restore();
     }
