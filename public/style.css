@@ -49,6 +49,7 @@ button { cursor: pointer; font-family: var(--font); }
 }
 .hidden { display: none !important; }
 .hidden-panel { display: none !important; }
+.hidden-panel.active { display: flex !important; }
 #shop-panel, #settings-panel, #friend-panel { display: flex !important; }
 #shop-panel:not(.active), #settings-panel:not(.active), #friend-panel:not(.active) { opacity: 0; pointer-events: none; transform: translate(-50%,-50%) scale(0.94); }
 

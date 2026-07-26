@@ -617,38 +617,44 @@ class Stickman {
     // ── WATCHER EYE EFFECT ──────────────────────────────────────────────────
     if (this.effect === 'effect_watcher_eye' && this.effectImg && this.effectImg.complete) {
       ctx.save();
-      // Draw floating eye above head
-      ctx.translate(J.head.x, headY - 100);
-
-      // Draw the generated Cornea image base
-      ctx.globalCompositeOperation = 'screen';
-      ctx.drawImage(this.effectImg.cornea, -45, -45, 90, 90);
-
-      // Calculate dynamic pupil tracking angle
-      // If enemy tracking is available, point to them. Otherwise, point forward.
-      const targetX = this.enemyX !== null ? this.enemyX : this.rootX + (200 * this.facing);
-      const targetY = this.enemyY !== null ? this.enemyY : this.groundY - 120;
-
-      // Calculate world position of the eye to get accurate tracking angle
+      
       const worldEyeX = this.rootX + (J.root.x + J.head.x) * this.facing;
       const worldEyeY = this.groundY + J.root.y + headY - 100;
+      
+      const time = performance.now();
+      const blinkCycle = time % 4000;
+      let blinkScale = 1;
+      if (blinkCycle < 200) {
+        blinkScale = Math.max(0.1, 1 - Math.sin((blinkCycle / 200) * Math.PI));
+      }
+
+      ctx.translate(J.head.x, headY - 100);
+      ctx.scale(1, blinkScale);
+
+      // Draw the generated Cornea image base (made slightly larger)
+      ctx.globalCompositeOperation = 'screen';
+      ctx.drawImage(this.effectImg.cornea, -50, -50, 100, 100);
+
+      const targetX = this.enemyX !== null ? this.enemyX : this.rootX + (200 * this.facing);
+      const targetY = this.enemyY !== null ? this.enemyY : this.groundY - 120;
 
       const dx = targetX - worldEyeX;
       const dy = targetY - worldEyeY;
       const angle = Math.atan2(dy, dx);
 
       // The pupil moves within a small radius inside the cornea
-      // EDIT THIS: Change `pupilRadius` to control how far the pupil moves from the center
-      const pupilRadius = 4;
+      const pupilRadius = 6;
       const px = Math.cos(angle) * pupilRadius;
       const py = Math.sin(angle) * pupilRadius;
 
       ctx.translate(px * this.facing, py);
+      
+      // Pupil rotation
+      const pupilRotation = (time / 1000) * 0.5;
+      ctx.rotate(pupilRotation);
 
-      // Draw the Pupil Image
-      // EDIT THIS: Change the size and offset of the pupil here
-      // Format: ctx.drawImage(image, xOffset, yOffset, width, height)
-      ctx.drawImage(this.effectImg.pupil, -20, -20, 38, 38);
+      // Draw the Pupil Image (made slightly larger)
+      ctx.drawImage(this.effectImg.pupil, -33, -33, 66, 66);
 
       ctx.restore();
     }
