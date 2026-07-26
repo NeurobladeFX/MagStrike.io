@@ -195,6 +195,19 @@ button { cursor: pointer; font-family: var(--font); }
   box-shadow: 0 4px 18px rgba(255,215,0,0.4); transform: translateY(-50%) scale(1.1);
 }
 
+.ad-btn-side {
+  position: absolute; top: 50%; left: 24px; transform: translateY(-50%);
+  background: rgba(255, 60, 60, 0.2); border: 1px solid #ff3355;
+  color: #fff; width: 60px; height: 60px; border-radius: 50%;
+  font-size: 1.2rem; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; transition: 0.2s; backdrop-filter: blur(6px); z-index: 10;
+  text-align: center;
+}
+.ad-btn-side:hover {
+  background: #ff3355; border-color: #fff; color: #fff;
+  box-shadow: 0 4px 18px rgba(255, 51, 85, 0.5); transform: translateY(-50%) scale(1.1);
+}
+
 .lobby-center { text-align: center; }
 .lobby-title { font-size: 5rem; font-weight: 900; letter-spacing: 10px; }
 .lobby-subtitle {

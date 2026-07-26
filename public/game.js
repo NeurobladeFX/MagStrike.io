@@ -283,6 +283,7 @@ const app = {
     if (pWins) pWins.innerText = appState.wins;
     const pLoss = document.getElementById('profile-stat-losses');
     if (pLoss) pLoss.innerText = appState.losses;
+    const pLvl = document.getElementById('profile-stat-level');
     if (pLvl) pLvl.innerText = appState.level;
     const pWpm = document.getElementById('profile-stat-wpm');
     if (pWpm) pWpm.innerText = appState.wpmRecord + ' WPM';
@@ -921,6 +922,54 @@ const app = {
   
   returnToLobby() {
     this.changeScene('lobby-screen');
+  },
+  
+  showAd() {
+    const modal = document.getElementById('ad-modal');
+    const timerEl = document.getElementById('ad-timer');
+    const closeBtn = document.getElementById('ad-close-btn');
+    
+    if (modal && timerEl && closeBtn) {
+      modal.style.display = 'flex';
+      closeBtn.disabled = true;
+      closeBtn.style.opacity = '0.5';
+      closeBtn.style.cursor = 'not-allowed';
+      
+      let timeLeft = 5;
+      timerEl.innerText = `WAIT ${timeLeft} SECONDS...`;
+      timerEl.style.color = '#ff3355';
+      
+      if (appState.adTimer) clearInterval(appState.adTimer);
+      
+      appState.adTimer = setInterval(() => {
+        timeLeft--;
+        if (timeLeft > 0) {
+          timerEl.innerText = `WAIT ${timeLeft} SECONDS...`;
+        } else {
+          clearInterval(appState.adTimer);
+          timerEl.innerText = `REWARD UNLOCKED!`;
+          timerEl.style.color = '#2ecc71';
+          closeBtn.disabled = false;
+          closeBtn.style.opacity = '1';
+          closeBtn.style.cursor = 'pointer';
+        }
+      }, 1000);
+    }
+  },
+  
+  finishAd() {
+    const modal = document.getElementById('ad-modal');
+    if (modal) modal.style.display = 'none';
+    
+    appState.credits += 50;
+    this.saveGame();
+    this.updateGlobalUI();
+    
+    const sfx = document.getElementById('sfx-win');
+    if (sfx) {
+      sfx.currentTime = 0;
+      sfx.play().catch(()=>{});
+    }
   },
   
   handleMatchStarted(data) {
