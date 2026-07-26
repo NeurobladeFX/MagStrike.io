@@ -631,9 +631,9 @@ class Stickman {
       ctx.translate(J.head.x, headY - 100);
       ctx.scale(1, blinkScale);
 
-      // Draw the generated Cornea image base (made slightly larger)
+      // Draw the generated Cornea image base (made significantly larger)
       ctx.globalCompositeOperation = 'screen';
-      ctx.drawImage(this.effectImg.cornea, -50, -50, 100, 100);
+      ctx.drawImage(this.effectImg.cornea, -70, -70, 140, 140);
 
       const targetX = this.enemyX !== null ? this.enemyX : this.rootX + (200 * this.facing);
       const targetY = this.enemyY !== null ? this.enemyY : this.groundY - 120;
@@ -643,7 +643,7 @@ class Stickman {
       const angle = Math.atan2(dy, dx);
 
       // The pupil moves within a small radius inside the cornea
-      const pupilRadius = 6;
+      const pupilRadius = 12;
       const px = Math.cos(angle) * pupilRadius;
       const py = Math.sin(angle) * pupilRadius;
 
@@ -653,8 +653,8 @@ class Stickman {
       const pupilRotation = (time / 1000) * 0.5;
       ctx.rotate(pupilRotation);
 
-      // Draw the Pupil Image (made slightly larger)
-      ctx.drawImage(this.effectImg.pupil, -33, -33, 66, 66);
+      // Draw the Pupil Image (scaled appropriately to fit inside the larger cornea)
+      ctx.drawImage(this.effectImg.pupil, -40, -40, 80, 80);
 
       ctx.restore();
     }
