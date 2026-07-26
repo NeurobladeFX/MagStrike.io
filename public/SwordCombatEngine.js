@@ -645,7 +645,7 @@ class Stickman {
       const angle = Math.atan2(dy, dx);
 
       // Tracking is disabled to keep the pupil locked dead-center in the cornea
-      
+
       // Pupil rotation
       const pupilRotation = (time / 1000) * 0.5;
       ctx.rotate(pupilRotation);
@@ -1020,7 +1020,7 @@ class DualCombatScene {
     const fireAudio = document.getElementById('sfx-fire');
     if (fireAudio) {
       fireAudio.currentTime = 0;
-      fireAudio.play().catch(()=>{});
+      fireAudio.play().catch(() => { });
     }
 
     const spellId = 'spell_' + Math.random().toString(36).substring(2);

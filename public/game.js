@@ -283,10 +283,9 @@ const app = {
     if (pWins) pWins.innerText = appState.wins;
     const pLoss = document.getElementById('profile-stat-losses');
     if (pLoss) pLoss.innerText = appState.losses;
-    const pLvl = document.getElementById('profile-stat-level');
     if (pLvl) pLvl.innerText = appState.level;
     const pWpm = document.getElementById('profile-stat-wpm');
-    if (pWpm) pWpm.innerText = appState.wpmRecord + ' HPS';
+    if (pWpm) pWpm.innerText = appState.wpmRecord + ' WPM';
     
     // Update XP Bar Logic
     const levelBar = document.getElementById('profile-level-bar');
@@ -373,7 +372,7 @@ const app = {
     document.getElementById('opp-profile-level').innerText = e.level || 1;
     document.getElementById('opp-profile-wins').innerText = e.wins || 0;
     document.getElementById('opp-profile-losses').innerText = e.losses || 0;
-    document.getElementById('opp-profile-wpm').innerText = (e.wpm || 0) + ' HPS';
+    document.getElementById('opp-profile-wpm').innerText = (e.wpm || 0) + ' WPM';
     document.getElementById('opp-profile-avatar').src = this.getAvatarSrc(e.avatar || 'hero_pig');
     
     const tRank = Math.min(Math.max(e.trophy || 1, 1), 7);
@@ -865,7 +864,7 @@ const app = {
     const creditsEarned = isWinner ? 50 : 10;
 
     document.getElementById('result-words').innerText   = totalHits;
-    document.getElementById('result-wpm').innerText     = `${finalHps} HPS`;
+    document.getElementById('result-wpm').innerText     = `${finalHps} WPM`;
     document.getElementById('result-accuracy').innerText = accuracy;
     document.getElementById('result-credits').innerText = `+${creditsEarned}`;
 
