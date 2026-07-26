@@ -387,6 +387,7 @@ const app = {
   },
 
   closeLevelUp() {
+    if (socket) socket.emit('leaveRoom');
     document.getElementById('level-up-screen').classList.remove('active');
     this.changeScene('lobby-screen');
   },
