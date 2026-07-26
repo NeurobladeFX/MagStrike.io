@@ -45,11 +45,11 @@
       <div class="global-gold-display"><img src="assets/coin.png"
           style="width:20px; height:20px; vertical-align:middle; margin-right:5px;"> <span id="global-credits">0</span>
       </div>
-      <button class="icon-btn" onclick="app.openLeaderboard()" title="Leaderboard">🏆</button>
+      <button class="icon-btn" onclick="app.openLeaderboard()" title="Leaderboard"><img src="assets/icon_leaderboard.png" style="width:100%; height:100%; object-fit:contain;"></button>
       <button class="icon-btn" onclick="app.openSettings()" title="Settings">⚙️</button>
     </div>
 
-    <button class="shop-btn-side" onclick="app.openShop()" title="Sanctum">✨</button>
+    <button class="shop-btn-side" onclick="app.openShop()" title="Sanctum"><img src="assets/icon_shop.png" style="width:100%; height:100%; object-fit:contain;"></button>
 
     <div class="lobby-center">
       <img src="assets/logo.png" alt="MagStrike" class="main-logo"
@@ -424,6 +424,9 @@
   </div>
 
   <audio id="bg-music" src="assets/Gravel_Road_Vigil.mp3" loop></audio>
+  <audio id="sfx-fire" src="assets/sfx_fire.mp3"></audio>
+  <audio id="sfx-win" src="assets/sfx_win.mp3"></audio>
+  <audio id="sfx-lose" src="assets/sfx_lose.mp3"></audio>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="SwordCombatEngine.js?v=4"></script>

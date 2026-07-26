@@ -1017,6 +1017,12 @@ class DualCombatScene {
     this.stats.hits++;
     this.stats.lastMove = `SPELL: ${letter}`;
 
+    const fireAudio = document.getElementById('sfx-fire');
+    if (fireAudio) {
+      fireAudio.currentTime = 0;
+      fireAudio.play().catch(()=>{});
+    }
+
     const spellId = 'spell_' + Math.random().toString(36).substring(2);
 
     // Cast spell with alternating hand, spawn projectile exactly on strike

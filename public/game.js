@@ -844,6 +844,12 @@ const app = {
     const isWinner = (winnerNum === 1 && appState.match.isPlayer1)
                   || (winnerNum === 2 && !appState.match.isPlayer1);
 
+    const sfx = isWinner ? document.getElementById('sfx-win') : document.getElementById('sfx-lose');
+    if (sfx) {
+      sfx.currentTime = 0;
+      sfx.play().catch(()=>{});
+    }
+
     this.changeScene('game-over-screen');
 
     const titleEl = document.getElementById('result-title');
