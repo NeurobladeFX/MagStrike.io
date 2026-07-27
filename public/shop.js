@@ -9,7 +9,7 @@ const SHOP_DATA = {
   armbands: [
     { id: 'none', name: 'NONE', price: 0, img: null },
     { id: 'outfit_handband_shadow', name: 'Shadow Band', price: 1000, img: 'assets/handband_shadow.png' },
-    { id: 'outfit_handband_ninja', name: 'Ninja Band', price: 500, img: 'assets/ninja_armband.PNG' }
+    { id: 'outfit_handband_ninja', name: 'Ninja Band', price: 500, img: 'assets/ninja_armband.png' }
   ],
   effects: [
     { id: 'none', name: 'NONE', price: 0, img: null },
