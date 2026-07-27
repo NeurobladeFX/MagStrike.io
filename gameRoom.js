@@ -86,6 +86,23 @@ class GameRoom {
     }
   }
 
+  handleDisconnect(playerId) {
+    if (this.gameState !== 'PLAYING') return;
+    
+    let winner = 0;
+    if (playerId === this.p1Id) {
+      winner = 2; // P1 disconnected, P2 wins
+    } else if (playerId === this.p2Id) {
+      winner = 1; // P2 disconnected, P1 wins
+    }
+    
+    if (winner !== 0) {
+      this.gameState = 'GAME_OVER';
+      this.io.to(this.roomId).emit('gameOver', { winner, reason: 'disconnect' });
+      this.stop();
+    }
+  }
+
   update() {
     if (this.gameState !== 'PLAYING') return;
     

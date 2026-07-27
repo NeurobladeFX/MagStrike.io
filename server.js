@@ -241,10 +241,11 @@ io.on('connection', (socket) => {
 
   socket.on('leaveRoom', () => {
     if (socket.roomId) {
-      socket.leave(socket.roomId);
       if (rooms.has(socket.roomId)) {
+        rooms.get(socket.roomId).handleDisconnect(socket.id);
         rooms.delete(socket.roomId);
       }
+      socket.leave(socket.roomId);
       socket.roomId = null;
     }
   });
@@ -254,6 +255,7 @@ io.on('connection', (socket) => {
       matchmakingQueue = null;
     }
     if (socket.roomId && rooms.has(socket.roomId)) {
+      rooms.get(socket.roomId).handleDisconnect(socket.id);
       rooms.delete(socket.roomId);
     }
     console.log(`Player disconnected: ${socket.id}`);
