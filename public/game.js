@@ -150,18 +150,28 @@ function onLetterWrong() {
   if (comboEl) comboEl.innerText = combo;
 }
 
+function showAd() {
+  if (typeof adBreak !== 'undefined') {
+    adBreak({
+      type: 'interstitial',
+      name: 'match_end',
+      beforeAd: () => { console.log('Ad starting'); },
+      afterAd: () => { console.log('Ad finished'); }
+    });
+  }
+}
 
 // --- App Flow / Scene Management ---
 const app = {
   async init() {
     this.loadSave();
     
-    // CrazyGames SDK Initialization
+    /* 
+    // CrazyGames SDK Initialization (Commented out)
     if (window.CrazyGames && window.CrazyGames.SDK) {
       try {
         await window.CrazyGames.SDK.init();
         console.log('CrazyGames SDK initialized successfully');
-        // Request banner ad
         if (window.CrazyGames.SDK.banner) {
           try {
             await window.CrazyGames.SDK.banner.requestBanner({
@@ -180,6 +190,7 @@ const app = {
     } else {
       console.log('CrazyGames SDK not available (running outside CrazyGames)');
     }
+    */
 
     // Autoplay music on first interaction
     const initMusic = () => {
@@ -977,7 +988,8 @@ const app = {
   
   showAd(callback) {
     const cb = callback || function() {};
-    // Try CrazyGames SDK midgame ad first
+    // Try CrazyGames SDK midgame ad first (Commented out for Itch.io)
+    /*
     if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.ad) {
       try {
         window.CrazyGames.SDK.ad.requestAd('midgame', {
@@ -988,6 +1000,26 @@ const app = {
         return;
       } catch(e) {
         console.warn('CrazyGames ad request failed:', e);
+      }
+    }
+    */
+
+    // Google AdSense H5 Games Ad
+    if (typeof adBreak === 'function') {
+      try {
+        adBreak({
+          type: 'reward',
+          name: 'watch_ad_for_gold',
+          beforeAd: () => { console.log('AdSense ad starting'); },
+          afterAd: () => { console.log('AdSense ad ending'); },
+          adBreakDone: (placementInfo) => {
+            console.log('AdSense adbreak done:', placementInfo);
+            cb();
+          }
+        });
+        return;
+      } catch(e) {
+        console.warn('AdSense adBreak failed:', e);
       }
     }
     // Fallback: show mock ad modal

@@ -11,18 +11,28 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&display=swap" rel="stylesheet">
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="style.css">
-  <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+  <!-- <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script> -->
+  <!-- Google AdSense H5 Game Ads -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXX" crossorigin="anonymous"></script>
+  <script>
+    window.adsbygoogle = window.adsbygoogle || [];
+    const adBreak = adConfig = function(o) {
+      adsbygoogle.push(o);
+    };
+    adConfig({ preloadAdBreaks: 'on' });
+  </script>
 </head>
 
 <body>
 
-  <!-- ─── CRAZYGAMES BANNER AD ─────────────────────────────────── -->
+  <!-- ─── CRAZYGAMES BANNER AD (COMMENTED OUT FOR ITCH.IO) ─────────────────────────────────── -->
+  <!--
   <div id="cg-banner-wrapper" style="display:none; position:fixed; top:0; left:50%; transform:translateX(-50%); z-index:9998; padding:4px; background:rgba(0,0,0,0.6); border-bottom-left-radius:8px; border-bottom-right-radius:8px;">
     <div id="cg-banner-container" style="width:728px; height:90px; background:rgba(20,20,20,0.9); border:1px solid #333; display:flex; align-items:center; justify-content:center; border-radius:6px; overflow:hidden;">
       <span style="color:#555; font-size:0.75rem; letter-spacing:2px;">ADVERTISEMENT</span>
     </div>
   </div>
+  -->
 
   <!-- ─── SPLASH SCREEN ───────────────────────────────────────── -->
   <div id="splash-screen" class="scene active" style="display:flex; flex-direction:column; justify-content:center; align-items:center; background:#000;">
