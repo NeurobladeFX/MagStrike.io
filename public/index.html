@@ -13,8 +13,8 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
   <!-- <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script> -->
-  <!-- Google AdSense H5 Game Ads -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5418251167655195" crossorigin="anonymous"></script>
+  <!-- Google AdSense H5 Game Ads (Test Mode Enabled for Localhost) -->
+  <script async data-adbreak-test="on" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5418251167655195" crossorigin="anonymous"></script>
   <script>
     window.adsbygoogle = window.adsbygoogle || [];
     const adBreak = adConfig = function(o) {
@@ -26,14 +26,18 @@
 
 <body>
 
-  <!-- ─── CRAZYGAMES BANNER AD (COMMENTED OUT FOR ITCH.IO) ─────────────────────────────────── -->
-  <!--
+  <!-- ─── GOOGLE ADSENSE BANNER AD ─────────────────────────────────── -->
   <div id="cg-banner-wrapper" style="display:none; position:fixed; top:0; left:50%; transform:translateX(-50%); z-index:9998; padding:4px; background:rgba(0,0,0,0.6); border-bottom-left-radius:8px; border-bottom-right-radius:8px;">
     <div id="cg-banner-container" style="width:728px; height:90px; background:rgba(20,20,20,0.9); border:1px solid #333; display:flex; align-items:center; justify-content:center; border-radius:6px; overflow:hidden;">
-      <span style="color:#555; font-size:0.75rem; letter-spacing:2px;">ADVERTISEMENT</span>
+      <!-- AdSense Display Ad Unit -->
+      <ins class="adsbygoogle"
+           style="display:inline-block;width:728px;height:90px"
+           data-ad-client="ca-pub-5418251167655195"></ins>
+      <script>
+           (adsbygoogle = window.adsbygoogle || []).push({});
+      </script>
     </div>
   </div>
-  -->
 
   <!-- ─── SPLASH SCREEN ───────────────────────────────────────── -->
   <div id="splash-screen" class="scene active" style="display:flex; flex-direction:column; justify-content:center; align-items:center; background:#000;">
