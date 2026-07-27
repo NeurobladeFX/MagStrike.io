@@ -730,6 +730,15 @@ const app = {
       rcDisplay.classList.add('hidden');
     }
 
+    // Reset enemy UI state from previous matches
+    document.getElementById('wait-enemy-side').classList.add('hidden');
+    const ticker = document.getElementById('match-ticker');
+    if (ticker) ticker.innerText = 'SEARCHING...';
+    const enemyNameEl = document.getElementById('wait-enemy-name');
+    if (enemyNameEl) enemyNameEl.innerText = '???';
+    const enemyAvEl = document.getElementById('wait-enemy-avatar');
+    if (enemyAvEl) enemyAvEl.src = 'assets/avatar_default.png';
+
     if (socket) {
       socket.emit('joinRandom', { 
         name: appState.playerName, 
