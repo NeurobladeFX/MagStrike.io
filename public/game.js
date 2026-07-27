@@ -1012,6 +1012,12 @@ const app = {
           name: 'watch_ad_for_gold',
           beforeAd: () => { console.log('AdSense ad starting'); },
           afterAd: () => { console.log('AdSense ad ending'); },
+          beforeReward: (showAdFn) => {
+            // This is required for rewarded ads to trigger the actual video
+            showAdFn();
+          },
+          adDismissed: () => { console.log('AdSense ad dismissed'); },
+          adViewed: () => { console.log('AdSense ad viewed'); },
           adBreakDone: (placementInfo) => {
             console.log('AdSense adbreak done:', placementInfo);
             cb();
