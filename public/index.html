@@ -12,10 +12,17 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&display=swap" rel="stylesheet">
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
-  <!-- CrazyGames SDK removed for Basic Launch (no ads allowed) -->
+  <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 </head>
 
 <body>
+
+  <!-- ─── CRAZYGAMES BANNER AD ─────────────────────────────────── -->
+  <div id="cg-banner-wrapper" style="display:none; position:fixed; top:0; left:50%; transform:translateX(-50%); z-index:9998; padding:4px; background:rgba(0,0,0,0.6); border-bottom-left-radius:8px; border-bottom-right-radius:8px;">
+    <div id="cg-banner-container" style="width:728px; height:90px; background:rgba(20,20,20,0.9); border:1px solid #333; display:flex; align-items:center; justify-content:center; border-radius:6px; overflow:hidden;">
+      <span style="color:#555; font-size:0.75rem; letter-spacing:2px;">ADVERTISEMENT</span>
+    </div>
+  </div>
 
   <!-- ─── SPLASH SCREEN ───────────────────────────────────────── -->
   <div id="splash-screen" class="scene active" style="display:flex; flex-direction:column; justify-content:center; align-items:center; background:#000;">
@@ -78,6 +85,10 @@
 
     <button class="shop-btn-side" onclick="app.openShop()" title="Sanctum"><img src="assets/icon_shop.png" style="width:100%; height:100%; object-fit:contain;"></button>
 
+    <button class="ad-btn-side" onclick="app.showAd(function(){ alert('Ad reward: +50 Gold!'); appState.credits += 50; app.saveGame(); })" title="Watch Ad">
+      <span style="font-size:1.4rem;">🎬</span>
+      <span style="font-size:0.55rem; font-weight:900; letter-spacing:1px; color:#fff;">FREE</span>
+    </button>
 
 
     <div class="lobby-center">

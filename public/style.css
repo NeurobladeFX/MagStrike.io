@@ -276,8 +276,6 @@ button { cursor: pointer; font-family: var(--font); }
 
 /* ── LEADERBOARD PAGE (STANDALONE SCENE) ────────────────────────────────── */
 .leaderboard-page {
-  background: radial-gradient(ellipse at 50% 30%, #1c0202 0%, #050000 90%),
-              url('assets/menu_bg.png') center/cover no-repeat;
   position: fixed;
   inset: 0;
   display: flex;
@@ -287,6 +285,16 @@ button { cursor: pointer; font-family: var(--font); }
   padding: 30px 40px;
   overflow-y: auto;
   z-index: 100;
+  background: rgba(5, 0, 0, 0.7);
+}
+.leaderboard-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: url('assets/background.jpg') center/cover no-repeat;
+  filter: blur(8px);
+  z-index: -1;
+  transform: scale(1.05);
 }
 
 .lb-page-header {

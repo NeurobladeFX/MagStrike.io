@@ -156,7 +156,30 @@ const app = {
   async init() {
     this.loadSave();
     
-    // CrazyGames SDK removed for Basic Launch (no ads allowed)
+    // CrazyGames SDK Initialization
+    if (window.CrazyGames && window.CrazyGames.SDK) {
+      try {
+        await window.CrazyGames.SDK.init();
+        console.log('CrazyGames SDK initialized successfully');
+        // Request banner ad
+        if (window.CrazyGames.SDK.banner) {
+          try {
+            await window.CrazyGames.SDK.banner.requestBanner({
+              id: 'cg-banner-container',
+              width: 728,
+              height: 90
+            });
+            console.log('CrazyGames banner requested');
+          } catch(e) {
+            console.warn('CrazyGames banner request failed:', e);
+          }
+        }
+      } catch(e) {
+        console.warn('CrazyGames SDK init failed:', e);
+      }
+    } else {
+      console.log('CrazyGames SDK not available (running outside CrazyGames)');
+    }
 
     // Autoplay music on first interaction
     const initMusic = () => {
@@ -334,8 +357,15 @@ const app = {
     document.getElementById(sceneId).classList.add('active');
     appState.scene = sceneId;
     
-
-    
+    // Show/hide banner ad on lobby and waiting screens
+    const bannerWrapper = document.getElementById('cg-banner-wrapper');
+    if (bannerWrapper) {
+      if (sceneId === 'lobby-screen' || sceneId === 'waiting-screen') {
+        bannerWrapper.style.display = 'block';
+      } else {
+        bannerWrapper.style.display = 'none';
+      }
+    }
     // Manage lobby stickman rendering
     if (sceneId === 'lobby-screen') {
       if (!window.lobbyGraphics) {
@@ -936,9 +966,48 @@ const app = {
     this.changeScene('lobby-screen');
   },
   
-  showAd() {
-    // Ads removed for Basic Launch
-    alert('Ads coming soon!');
+  showAd(callback) {
+    const cb = callback || function() {};
+    // Try CrazyGames SDK midgame ad first
+    if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.ad) {
+      try {
+        window.CrazyGames.SDK.ad.requestAd('midgame', {
+          adStarted: () => console.log('CrazyGames ad started'),
+          adFinished: () => { console.log('CrazyGames ad finished'); cb(); },
+          adError: (err) => { console.warn('CrazyGames ad error:', err); cb(); }
+        });
+        return;
+      } catch(e) {
+        console.warn('CrazyGames ad request failed:', e);
+      }
+    }
+    // Fallback: show mock ad modal
+    const modal = document.getElementById('ad-modal');
+    if (modal) {
+      modal.style.display = 'flex';
+      const closeBtn = document.getElementById('ad-close-btn');
+      const timerEl = document.getElementById('ad-timer');
+      if (closeBtn) { closeBtn.disabled = true; closeBtn.style.opacity = '0.5'; closeBtn.style.cursor = 'not-allowed'; }
+      let countdown = 5;
+      if (timerEl) timerEl.innerText = `WAIT ${countdown} SECONDS...`;
+      this._adCallback = cb;
+      const adInterval = setInterval(() => {
+        countdown--;
+        if (timerEl) timerEl.innerText = countdown > 0 ? `WAIT ${countdown} SECONDS...` : 'AD COMPLETE!';
+        if (countdown <= 0) {
+          clearInterval(adInterval);
+          if (closeBtn) { closeBtn.disabled = false; closeBtn.style.opacity = '1'; closeBtn.style.cursor = 'pointer'; }
+        }
+      }, 1000);
+    } else {
+      cb();
+    }
+  },
+
+  finishAd() {
+    const modal = document.getElementById('ad-modal');
+    if (modal) modal.style.display = 'none';
+    if (this._adCallback) { this._adCallback(); this._adCallback = null; }
   },
   
   handleMatchStarted(data) {
