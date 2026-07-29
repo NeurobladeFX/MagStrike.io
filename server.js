@@ -157,13 +157,18 @@ io.on('connection', (socket) => {
           const botNames = ["SHADOW_STRIKE", "NEO_MAGE", "SPELL_CASTER", "DARK_KNIGHT", "GHOST_X", "NINJA_PRO", "VOID_WALKER", "FIRE_LORD"];
           const botName = botNames[Math.floor(Math.random() * botNames.length)] + "_" + Math.floor(Math.random()*999);
           
+          const avatars = ['avatar_stickman_assassin', 'avatar_stickman_elder', 'avatar_stickman_warrior', 'avatar_stickman_mage', 'avatar_stickman_rogue', 'avatar_stickman_youth'];
+          const outfits = [null, 'outfit_mage', 'outfit_samurai', 'outfit_pirate', 'outfit_headband'];
+          const armbands = [null, 'outfit_handband_shadow', 'outfit_handband_ninja'];
+          const effects = [null, 'effect_shadow', 'effect_dragon', 'effect_watcher_eye'];
+          
           const botSocket = {
             id: botId,
-            hero: 'hero_pig',
+            hero: avatars[Math.floor(Math.random() * avatars.length)],
             playerName: botName,
-            outfit: null,
-            effect: null,
-            armband: null,
+            outfit: outfits[Math.floor(Math.random() * outfits.length)],
+            effect: effects[Math.floor(Math.random() * effects.length)],
+            armband: armbands[Math.floor(Math.random() * armbands.length)],
             level: Math.max(1, (socket.level || 1) + Math.floor(Math.random() * 3) - 1),
             wins: Math.floor(Math.random() * 50),
             losses: Math.floor(Math.random() * 50),

@@ -43,12 +43,12 @@ class GameRoom {
       const letter = letters[Math.floor(Math.random() * letters.length)];
       this.handleAttack(botId, {
         damage: 10,
-        wpm: 35 + Math.floor(Math.random() * 20),
+        wpm: 60 + Math.floor(Math.random() * 40),
         letter: letter,
         spellId: 'BOT_SPELL_' + Math.random().toString(36).substring(2, 8)
       });
       
-      const nextDelay = 1200 + Math.random() * 1000;
+      const nextDelay = 400 + Math.random() * 800;
       const timeoutId = setTimeout(attackLoop, nextDelay);
       this.botTimeouts.push(timeoutId);
     };
