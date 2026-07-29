@@ -161,8 +161,7 @@ const app = {
   async init() {
     this.loadSave();
     
-    /* 
-    // CrazyGames SDK Initialization (Commented out)
+    // CrazyGames SDK Initialization
     if (window.CrazyGames && window.CrazyGames.SDK) {
       try {
         await window.CrazyGames.SDK.init();
@@ -185,7 +184,6 @@ const app = {
     } else {
       console.log('CrazyGames SDK not available (running outside CrazyGames)');
     }
-    */
 
     // Autoplay music on first interaction
     const initMusic = () => {
@@ -983,8 +981,7 @@ const app = {
   
   showAd(callback) {
     const cb = callback || function() {};
-    // Try CrazyGames SDK midgame ad first (Commented out for Itch.io)
-    /*
+    // Try CrazyGames SDK midgame ad first
     if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.ad) {
       try {
         window.CrazyGames.SDK.ad.requestAd('midgame', {
@@ -997,7 +994,6 @@ const app = {
         console.warn('CrazyGames ad request failed:', e);
       }
     }
-    */
 
     // Fallback: show mock ad modal (now displays Adsterra container)
     const modal = document.getElementById('ad-modal');
