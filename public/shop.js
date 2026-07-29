@@ -4,7 +4,7 @@ const SHOP_DATA = {
     { id: 'outfit_mage', name: 'Mage Hat', price: 200, img: 'assets/mage_hat.png' },
     { id: 'outfit_samurai', name: 'Samurai Hat', price: 500, img: 'assets/samurai_hat.png' },
     { id: 'outfit_pirate', name: 'Pirate Hat', price: 600, img: 'assets/pirate_hat.png' },
-    { id: 'outfit_headband', name: 'Ninja Headband', price: 300, img: 'assets/headband.PNG' }
+    { id: 'outfit_headband', name: 'Ninja Headband', price: 300, img: 'assets/headband.png' }
   ],
   armbands: [
     { id: 'none', name: 'NONE', price: 0, img: null },

@@ -84,7 +84,7 @@ function getOutfitHat(id) {
   if (id === 'outfit_mage') img.src = 'assets/mage_hat.png';
   else if (id === 'outfit_samurai') img.src = 'assets/samurai_hat.png';
   else if (id === 'outfit_pirate') img.src = 'assets/pirate_hat.png';
-  else if (id === 'outfit_headband') img.src = 'assets/headband.PNG';
+  else if (id === 'outfit_headband') img.src = 'assets/headband.png';
   else if (id === 'outfit_handband_ninja') img.src = 'assets/ninja_armband.png';
   else if (id === 'outfit_handband_mage') img.src = 'assets/handband_mage.png';
   else if (id === 'outfit_handband_warrior') img.src = 'assets/handband_warrior.png';
