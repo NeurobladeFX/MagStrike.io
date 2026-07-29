@@ -151,13 +151,8 @@ function onLetterWrong() {
 }
 
 function showAd() {
-  if (typeof adBreak !== 'undefined') {
-    adBreak({
-      type: 'interstitial',
-      name: 'match_end',
-      beforeAd: () => { console.log('Ad starting'); },
-      afterAd: () => { console.log('Ad finished'); }
-    });
+  if (app && typeof app.showAd === 'function') {
+    app.showAd();
   }
 }
 
@@ -210,20 +205,20 @@ const app = {
       this.handleKeyPress(e.key.toUpperCase());
     });
 
-    // Show splash screen, then loading bar, then transition to lobby
+    // Show splash screen briefly, then quick loading bar
     setTimeout(() => {
       this.changeScene('loading-screen');
       let prog = 0;
       const bar = document.getElementById('progress-bar');
       const tick = setInterval(() => {
-        prog = Math.min(prog + Math.random() * 18, 100);
+        prog = Math.min(prog + Math.random() * 30, 100); // Faster loading
         if (bar) bar.style.width = prog + '%';
         if (prog >= 100) {
           clearInterval(tick);
-          setTimeout(() => this.changeScene('lobby-screen'), 300);
+          setTimeout(() => this.changeScene('lobby-screen'), 150); // Faster transition
         }
-      }, 80);
-    }, 2000);
+      }, 40); // Faster tick
+    }, 1000); // Reduced delay from 2000ms
 
     // Tick loop for match HUD
     setInterval(this.matchTick.bind(this), 500);
@@ -1004,31 +999,7 @@ const app = {
     }
     */
 
-    // Google AdSense H5 Games Ad
-    if (typeof adBreak === 'function') {
-      try {
-        adBreak({
-          type: 'reward',
-          name: 'watch_ad_for_gold',
-          beforeAd: () => { console.log('AdSense ad starting'); },
-          afterAd: () => { console.log('AdSense ad ending'); },
-          beforeReward: (showAdFn) => {
-            // This is required for rewarded ads to trigger the actual video
-            showAdFn();
-          },
-          adDismissed: () => { console.log('AdSense ad dismissed'); },
-          adViewed: () => { console.log('AdSense ad viewed'); },
-          adBreakDone: (placementInfo) => {
-            console.log('AdSense adbreak done:', placementInfo);
-            cb();
-          }
-        });
-        return;
-      } catch(e) {
-        console.warn('AdSense adBreak failed:', e);
-      }
-    }
-    // Fallback: show mock ad modal
+    // Fallback: show mock ad modal (now displays Adsterra container)
     const modal = document.getElementById('ad-modal');
     if (modal) {
       modal.style.display = 'flex';
@@ -1221,7 +1192,7 @@ const ctx = canvas.getContext('2d');
 // DualCombatScene instance — initialized once the page loads (see Boot section)
 let graphics = null;
 // --- Boot ---
-window.onload = () => {
+document.addEventListener('DOMContentLoaded', () => {
   // Initialize the high-performance combat renderer
   graphics = new DualCombatScene(canvas);
   app.init();
@@ -1241,4 +1212,4 @@ window.onload = () => {
       }
     }
   }, 1000);
-};
+});

@@ -14,6 +14,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
 let matchmakingQueue = null;
+let botMatchTimeout = null;
 
 const GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_WEBAPP_URL || 'https://script.google.com/macros/s/AKfycbyhqi84HC0lCpGgqNszY21EVL2rug1i3sTEE251BVEmqhu6LJ4R-jrIWcX8sqU8s1Ss/exec';
 
@@ -127,6 +128,7 @@ io.on('connection', (socket) => {
     socket.trophy = data && data.trophy ? data.trophy : 1;
     
     if (matchmakingQueue && matchmakingQueue.id !== socket.id) {
+      clearTimeout(botMatchTimeout);
       const p1 = matchmakingQueue;
       const p2 = socket;
       matchmakingQueue = null;
@@ -146,12 +148,54 @@ io.on('connection', (socket) => {
       gameRoom.start();
     } else {
       matchmakingQueue = socket;
+      clearTimeout(botMatchTimeout);
+      botMatchTimeout = setTimeout(() => {
+        if (matchmakingQueue === socket) {
+          matchmakingQueue = null;
+          
+          const botId = 'BOT_' + Math.random().toString(36).substring(2, 6).toUpperCase();
+          const botNames = ["SHADOW_STRIKE", "NEO_MAGE", "SPELL_CASTER", "DARK_KNIGHT", "GHOST_X", "NINJA_PRO", "VOID_WALKER", "FIRE_LORD"];
+          const botName = botNames[Math.floor(Math.random() * botNames.length)] + "_" + Math.floor(Math.random()*999);
+          
+          const botSocket = {
+            id: botId,
+            hero: 'hero_pig',
+            playerName: botName,
+            outfit: null,
+            effect: null,
+            armband: null,
+            level: Math.max(1, (socket.level || 1) + Math.floor(Math.random() * 3) - 1),
+            wins: Math.floor(Math.random() * 50),
+            losses: Math.floor(Math.random() * 50),
+            wpm: Math.floor(Math.random() * 40) + 20,
+            trophy: socket.trophy || 1,
+            join: () => {},
+            emit: () => {},
+            leave: () => {}
+          };
+
+          const p1 = socket;
+          const p2 = botSocket;
+          
+          const roomId = 'room_' + p1.id + '_' + p2.id;
+          p1.join(roomId);
+          p1.roomId = roomId;
+
+          const gameRoom = new GameRoom(roomId, io, p1.id, p2.id);
+          rooms.set(roomId, gameRoom);
+
+          p1.emit('matchStarted', { roomId, playerNum: 1, enemyHero: p2.hero, enemyName: p2.playerName, enemyOutfit: p2.outfit, enemyEffect: p2.effect, enemyArmband: p2.armband, enemyData: { name: p2.playerName, level: p2.level, wins: p2.wins, losses: p2.losses, wpm: p2.wpm, trophy: p2.trophy, avatar: p2.hero } });
+          
+          gameRoom.start();
+        }
+      }, 5000);
     }
   });
 
   socket.on('leaveQueue', () => {
     if (matchmakingQueue === socket) {
       matchmakingQueue = null;
+      clearTimeout(botMatchTimeout);
     }
   });
 
@@ -253,6 +297,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     if (matchmakingQueue === socket) {
       matchmakingQueue = null;
+      clearTimeout(botMatchTimeout);
     }
     if (socket.roomId && rooms.has(socket.roomId)) {
       rooms.get(socket.roomId).handleDisconnect(socket.id);

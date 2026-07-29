@@ -16,10 +16,45 @@ class GameRoom {
 
   start() {
     this.loop = setInterval(() => this.update(), 1000 / 30); // 30 tick rate
+    
+    if (this.p1Id.startsWith('BOT_')) {
+      this.startBot(this.p1Id);
+    }
+    if (this.p2Id.startsWith('BOT_')) {
+      this.startBot(this.p2Id);
+    }
   }
 
   stop() {
     if (this.loop) clearInterval(this.loop);
+    if (this.botTimeouts) {
+      this.botTimeouts.forEach(t => clearTimeout(t));
+      this.botTimeouts = [];
+    }
+  }
+
+  startBot(botId) {
+    if (!this.botTimeouts) this.botTimeouts = [];
+    const letters = ['K', 'S', 'T', 'A', 'M', 'R', 'P', 'X', 'Z', 'V', 'N', 'B', 'W', 'D'];
+    
+    const attackLoop = () => {
+      if (this.gameState !== 'PLAYING') return;
+      
+      const letter = letters[Math.floor(Math.random() * letters.length)];
+      this.handleAttack(botId, {
+        damage: 10,
+        wpm: 35 + Math.floor(Math.random() * 20),
+        letter: letter,
+        spellId: 'BOT_SPELL_' + Math.random().toString(36).substring(2, 8)
+      });
+      
+      const nextDelay = 1200 + Math.random() * 1000;
+      const timeoutId = setTimeout(attackLoop, nextDelay);
+      this.botTimeouts.push(timeoutId);
+    };
+    
+    const timeoutId = setTimeout(attackLoop, 2000);
+    this.botTimeouts.push(timeoutId);
   }
   
   handleAttack(playerId, data) {
