@@ -188,7 +188,7 @@ io.on('connection', (socket) => {
           
           gameRoom.start();
         }
-      }, 5000);
+      }, 2000);
     }
   });
 
