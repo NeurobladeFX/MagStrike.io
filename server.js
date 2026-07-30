@@ -127,6 +127,9 @@ io.on('connection', (socket) => {
     socket.wpm = data && data.wpm ? data.wpm : 0;
     socket.trophy = data && data.trophy ? data.trophy : 1;
     
+    // Acknowledge queue join instantly to cancel client's local bot fallback
+    socket.emit('queueJoined');
+    
     if (matchmakingQueue && matchmakingQueue.id !== socket.id) {
       clearTimeout(botMatchTimeout);
       const p1 = matchmakingQueue;
@@ -142,8 +145,8 @@ io.on('connection', (socket) => {
       const gameRoom = new GameRoom(roomId, io, p1.id, p2.id);
       rooms.set(roomId, gameRoom);
 
-      p1.emit('matchStarted', { roomId, playerNum: 1, enemyHero: p2.hero, enemyName: p2.playerName, enemyOutfit: p2.outfit, enemyEffect: p2.effect, enemyArmband: p2.armband, enemyData: { name: p2.playerName, level: p2.level, wins: p2.wins, losses: p2.losses, wpm: p2.wpm, trophy: p2.trophy, avatar: p2.hero } });
-      p2.emit('matchStarted', { roomId, playerNum: 2, enemyHero: p1.hero, enemyName: p1.playerName, enemyOutfit: p1.outfit, enemyEffect: p1.effect, enemyArmband: p1.armband, enemyData: { name: p1.playerName, level: p1.level, wins: p1.wins, losses: p1.losses, wpm: p1.wpm, trophy: p1.trophy, avatar: p1.hero } });
+      p1.emit('matchStarted', { isRealNetworkMatch: true, roomId, playerNum: 1, enemyHero: p2.hero, enemyName: p2.playerName, enemyOutfit: p2.outfit, enemyEffect: p2.effect, enemyArmband: p2.armband, enemyData: { name: p2.playerName, level: p2.level, wins: p2.wins, losses: p2.losses, wpm: p2.wpm, trophy: p2.trophy, avatar: p2.hero } });
+      p2.emit('matchStarted', { isRealNetworkMatch: true, roomId, playerNum: 2, enemyHero: p1.hero, enemyName: p1.playerName, enemyOutfit: p1.outfit, enemyEffect: p1.effect, enemyArmband: p1.armband, enemyData: { name: p1.playerName, level: p1.level, wins: p1.wins, losses: p1.losses, wpm: p1.wpm, trophy: p1.trophy, avatar: p1.hero } });
       
       gameRoom.start();
     } else {
@@ -189,11 +192,11 @@ io.on('connection', (socket) => {
           const gameRoom = new GameRoom(roomId, io, p1.id, p2.id);
           rooms.set(roomId, gameRoom);
 
-          p1.emit('matchStarted', { roomId, playerNum: 1, enemyHero: p2.hero, enemyName: p2.playerName, enemyOutfit: p2.outfit, enemyEffect: p2.effect, enemyArmband: p2.armband, enemyData: { name: p2.playerName, level: p2.level, wins: p2.wins, losses: p2.losses, wpm: p2.wpm, trophy: p2.trophy, avatar: p2.hero } });
+          p1.emit('matchStarted', { isRealNetworkMatch: false, isServerBot: true, roomId, playerNum: 1, enemyHero: p2.hero, enemyName: p2.playerName, enemyOutfit: p2.outfit, enemyEffect: p2.effect, enemyArmband: p2.armband, enemyData: { name: p2.playerName, level: p2.level, wins: p2.wins, losses: p2.losses, wpm: p2.wpm, trophy: p2.trophy, avatar: p2.hero } });
           
           gameRoom.start();
         }
-      }, 2000);
+      }, 10000); // 10 second timeout prioritizes human players
     }
   });
 

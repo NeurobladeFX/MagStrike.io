@@ -23,6 +23,8 @@ const appState = {
   xp: 0,
   trophyPoints: 0,
   trophyRank: 1,
+  isBotMatch: false,
+  botWpm: 0,
   match: {
     inMatch: false,
     timer: 0,
@@ -129,6 +131,19 @@ function onLetterCorrect(moveName, spellId) {
 
   const letter = typeof moveName === 'string' ? moveName.replace('Spell_', '') : 'SPELL';
 
+  if (appState.isBotMatch) {
+    appState.match.enemyHealth -= damage;
+    if (graphics) graphics.updateHealthBars((appState.match.myHealth / MAX_HEALTH) * 100, (appState.match.enemyHealth / MAX_HEALTH) * 100);
+    const enemyHpBar = document.getElementById('enemy-health');
+    if (enemyHpBar) enemyHpBar.style.width = `${Math.max(0, (appState.match.enemyHealth / MAX_HEALTH) * 100)}%`;
+    const myDmgEl = document.getElementById('game-my-dmg');
+    if (myDmgEl) myDmgEl.innerText = parseInt(myDmgEl.innerText || '0') + damage;
+    if (appState.match.enemyHealth <= 0) {
+      app.endGame(1);
+    }
+    return;
+  }
+
   // Sync to server
   if (socket) {
     socket.emit('attack', { damage, wpm: currentWpm, letter, move: moveName, spellId });
@@ -161,8 +176,7 @@ const app = {
   async init() {
     this.loadSave();
     
-    /* 
-    // CrazyGames SDK Initialization (Commented out)
+    // CrazyGames SDK Initialization
     if (window.CrazyGames && window.CrazyGames.SDK) {
       try {
         await window.CrazyGames.SDK.init();
@@ -185,7 +199,6 @@ const app = {
     } else {
       console.log('CrazyGames SDK not available (running outside CrazyGames)');
     }
-    */
 
     // Autoplay music on first interaction
     const initMusic = () => {
@@ -758,6 +771,38 @@ const app = {
         wpm: appState.wpmRecord,
         trophy: appState.trophyRank
       });
+      
+      appState.botFallbackTimer = setTimeout(() => {
+        if (!appState.match.inMatch) {
+          appState.isBotMatch = true;
+          appState.botWpm = Math.floor(Math.random() * 40) + 20;
+          
+          const botNames = ["SHADOW_STRIKE", "NEO_MAGE", "SPELL_CASTER", "DARK_KNIGHT", "GHOST_X", "NINJA_PRO", "VOID_WALKER", "FIRE_LORD"];
+          const botName = botNames[Math.floor(Math.random() * botNames.length)] + "_" + Math.floor(Math.random()*999);
+          const avatars = ['avatar_stickman_assassin', 'avatar_stickman_elder', 'avatar_stickman_warrior', 'avatar_stickman_mage', 'avatar_stickman_rogue', 'avatar_stickman_youth'];
+          const botAv = avatars[Math.floor(Math.random() * avatars.length)];
+          
+          app.handleMatchStarted({
+            roomId: 'local_bot_room',
+            playerNum: 1,
+            enemyHero: botAv,
+            enemyName: botName,
+            enemyOutfit: null,
+            enemyEffect: null,
+            enemyArmband: null,
+            enemyData: {
+              name: botName,
+              level: Math.max(1, appState.level + Math.floor(Math.random() * 3) - 1),
+              wins: Math.floor(Math.random() * 50),
+              losses: Math.floor(Math.random() * 50),
+              wpm: appState.botWpm,
+              trophy: appState.trophyRank,
+              avatar: botAv
+            },
+            isRealNetworkMatch: false
+          });
+        }
+      }, 1000);
     } else {
       alert("Multiplayer server is offline. Please try again later.");
       this.changeScene('lobby-screen');
@@ -820,6 +865,7 @@ const app = {
 
   cancelMatch() {
     if (appState.botFallbackTimer) clearTimeout(appState.botFallbackTimer);
+    appState.isBotMatch = false;
     if (socket) socket.emit('leaveQueue');
     this.changeScene('lobby-screen');
   },
@@ -893,11 +939,34 @@ const app = {
       const wpm = calculateWPM();
       document.getElementById('game-my-wpm').innerText = wpm;
     }
+
+    // Bot fallback logic
+    if (appState.isBotMatch && isTypingActive) {
+      const tickProb = appState.botWpm / 120;
+      if (Math.random() < tickProb) {
+        const dmg = 10 + Math.floor(Math.random() * 5);
+        appState.match.myHealth -= dmg;
+        if (graphics) {
+          const spells = ['A','B','C','D','E','F'];
+          graphics.triggerEnemyAttack(spells[Math.floor(Math.random() * spells.length)], Math.random().toString());
+          graphics.updateHealthBars((appState.match.myHealth / MAX_HEALTH) * 100, (appState.match.enemyHealth / MAX_HEALTH) * 100);
+        }
+        const myHpBar = document.getElementById('my-health');
+        if (myHpBar) myHpBar.style.width = `${Math.max(0, (appState.match.myHealth / MAX_HEALTH) * 100)}%`;
+        const enemyDmgEl = document.getElementById('game-enemy-dmg');
+        if (enemyDmgEl) enemyDmgEl.innerText = parseInt(enemyDmgEl.innerText || '0') + dmg;
+        
+        if (appState.match.myHealth <= 0) {
+          app.endGame(2);
+        }
+      }
+    }
   },
 
   endGame(winnerNum) {
     appState.match.inMatch = false;
     isTypingActive = false;
+    appState.isBotMatch = false;
     if (graphics) graphics.stop();
 
     const isWinner = (winnerNum === 1 && appState.match.isPlayer1)
@@ -983,8 +1052,7 @@ const app = {
   
   showAd(callback) {
     const cb = callback || function() {};
-    // Try CrazyGames SDK midgame ad first (Commented out for Itch.io)
-    /*
+    // Try CrazyGames SDK midgame ad first
     if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.ad) {
       try {
         window.CrazyGames.SDK.ad.requestAd('midgame', {
@@ -997,7 +1065,6 @@ const app = {
         console.warn('CrazyGames ad request failed:', e);
       }
     }
-    */
 
     // Fallback: show mock ad modal (now displays Adsterra container)
     const modal = document.getElementById('ad-modal');
@@ -1029,9 +1096,19 @@ const app = {
   },
   
   handleMatchStarted(data) {
+    if (appState.match.inMatch || appState.isBotMatch) {
+      // We are already in a local match or real match. Ignore incoming server match.
+      if (socket) socket.emit('leaveRoom');
+      return;
+    }
+    
     if (appState.botFallbackTimer) {
       clearTimeout(appState.botFallbackTimer);
       appState.botFallbackTimer = null;
+    }
+    
+    if (data.isRealNetworkMatch !== false) {
+      appState.isBotMatch = false;
     }
 
     // data: { roomId, playerNum, enemyHero, enemyName }
@@ -1074,6 +1151,13 @@ const app = {
 
 // --- Networking (Socket) ---
 if (socket) {
+  socket.on('queueJoined', () => {
+    if (appState.botFallbackTimer) {
+      clearTimeout(appState.botFallbackTimer);
+      appState.botFallbackTimer = null;
+    }
+  });
+
   socket.on('matchStarted', (data) => app.handleMatchStarted(data));
 
   socket.on('gameState', (state) => {
