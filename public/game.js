@@ -942,7 +942,7 @@ const app = {
 
     // Bot fallback logic
     if (appState.isBotMatch && isTypingActive) {
-      const tickProb = appState.botWpm / 120;
+      const tickProb = appState.botWpm / 80;
       if (Math.random() < tickProb) {
         const dmg = Math.floor(Math.random() * 5) + 5; // 5 to 9 damage
         appState.match.myHealth -= dmg;
