@@ -944,7 +944,7 @@ const app = {
     if (appState.isBotMatch && isTypingActive) {
       const tickProb = appState.botWpm / 120;
       if (Math.random() < tickProb) {
-        const dmg = 10 + Math.floor(Math.random() * 5);
+        const dmg = Math.floor(Math.random() * 5) + 5; // 5 to 9 damage
         appState.match.myHealth -= dmg;
         if (graphics) {
           const spells = ['A','B','C','D','E','F'];

@@ -196,7 +196,7 @@ io.on('connection', (socket) => {
           
           gameRoom.start();
         }
-      }, 10000); // 10 second timeout prioritizes human players
+      }, 5000); // 5 second timeout strikes a balance for waiting
     }
   });
 
